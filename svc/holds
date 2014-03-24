@@ -89,6 +89,8 @@ while ( my $h = $holds_rs->next() ) {
         waiting_at     => $h->branchcode()->branchname(),
         waiting_here   => $h->branchcode()->branchcode() eq $branch,
         priority       => $h->priority(),
+        pickup_location=> $h->pickup_location(),
+        print_status   => $h->print_status(),
         subtitle       => GetRecordValue(
             'subtitle', GetMarcBiblio($biblionumber),
             GetFrameworkCode($biblionumber)

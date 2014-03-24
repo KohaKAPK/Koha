@@ -67,6 +67,8 @@ $(document).ready(function() {
                                     data += ITEM_IS_IN_TRANSIT.format( oObj.from_branch, oObj.date_sent );
                                 } else if ( oObj.not_transferred ) {
                                     data += NOT_TRANSFERRED_YET.format( oObj.not_transferred_by );
+                                } else if ( oObj.print_status == 1 ) {
+                                    data += RESERVE_PROCESSING;
                                 }
                                 data += "</em>";
 
@@ -79,6 +81,11 @@ $(document).ready(function() {
                                   + "'>"
                                   + oObj.barcode
                                   + "</a>";
+                            }
+
+                            if ( oObj.pickup_location ){
+                                data += "<br/>";
+                                data += auth_location[oObj.pickup_location];
                             }
 
                             return data;

@@ -1,7 +1,7 @@
 [%# duplicates circ-menu.inc but assumes all borrower attributes are in a borrower variable rather than
 in the global namespace %]
 [% IF borrower %]
-<div class="patroninfo"><h5>[% borrower.firstname %] [% IF borrower.othernames %] ([% borrower.othernames %]) [% END %] [% borrower.surname %] ([% borrower.cardnumber %])</h5>
+<div class="patroninfo"><h5>[% borrower.surname %] [% IF 0 %] ([% borrower.othernames %]) [% END %] [% borrower.firstname %] ([% borrower.emailpro %])</h5>
 <!--[if IE 6]>
 <style type="tex/css">img { width: expression(this.width > 140 ? 140: true);
 }</style>
@@ -11,7 +11,7 @@ in the global namespace %]
 [% IF borrower.has_picture %]
 <li><img src="/cgi-bin/koha/members/patronimage.pl?borrowernumber=[% borrower.borrowernumber %]" id="patronimage" alt="[% borrower.firstname %] [% borrower.surname %] ([% borrower.cardnumber %])" border="0" style="max-width : 140px; margin: .3em 0 .3em .3em; padding: .2em; border: 1px solid #CCCCCC; width:auto !important; width:130px;" /></li>
 [% ELSE %]
-<li id="patronbasics"><img src="[% interface %]/[% theme %]/img/patron-blank.png" alt="[% borrower.firstname %] [% borrower.surname %] ([% borrower.cardnumber %])" border="0" style="margin: .3em 0 .3em .3em; padding: .2em; border: 1px solid #CCCCCC;" /></li>
+<li id="patronbasics"><img src="[% interface %]/[% theme %]/img/patron-blank.png" alt="[% borrower.firstname %] [% borrower.surname %] ([% borrower.emailpro %])" border="0" style="margin: .3em 0 .3em .3em; padding: .2em; border: 1px solid #CCCCCC;" /></li>
 [% END %]
 [% END %]
     [% IF ( borrower.address or borrower.address2 ) %]

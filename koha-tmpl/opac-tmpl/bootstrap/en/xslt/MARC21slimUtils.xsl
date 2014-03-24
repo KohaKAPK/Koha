@@ -20,6 +20,15 @@
 		</xsl:element>
 	</xsl:template>
 
+    <xsl:template name="fieldSelect">
+        <xsl:param name="field" />
+            <xsl:for-each select="marc:subfield">
+                <xsl:text> </xsl:text>
+                <xsl:value-of select="."/>
+                <xsl:text> </xsl:text>
+            </xsl:for-each>
+    </xsl:template>
+
 	<xsl:template name="subfieldSelect">
 		<xsl:param name="codes"/>
 		<xsl:param name="delimeter"><xsl:text> </xsl:text></xsl:param>

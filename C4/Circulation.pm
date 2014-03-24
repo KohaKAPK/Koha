@@ -94,6 +94,12 @@ BEGIN {
 		&AnonymiseIssueHistory
         &CheckIfIssuedToPatron
         &IsItemIssued
+        &GetPickupLocation
+        &GetAllPickupRules
+        &GetPickupRules
+        &GetAvailableItemsByLocation
+        &AddPickupRule
+        &DelPickupRule
 	);
 
 	# subs to deal with returns
@@ -903,7 +909,7 @@ sub CanBookBeIssued {
     if (   $item->{'restricted'}
         && $item->{'restricted'} == 1 )
     {
-        $issuingimpossible{RESTRICTED} = 1;
+        $needsconfirmation{NOT_FOR_LOAN_FORCING} = 1;
     }
     if ( $item->{'itemlost'} && C4::Context->preference("IssueLostItem") ne 'nothing' ) {
         my $code = GetAuthorisedValueByCode( 'LOST', $item->{'itemlost'} );
@@ -2740,6 +2746,8 @@ sub CanBookBeRenewed {
             return ( 0, "too_soon" );
         }
     }
+    return (0, "overdue") if
+        ( DateTime->now( time_zone => C4::Context->tz() ) > $itemissue->{date_due} );
 
     return ( 0, "auto_renew" ) if $itemissue->{auto_renew};
     return ( 1, undef );
@@ -3889,6 +3897,177 @@ sub GetAgeRestriction {
     }
 
     return ($restriction_year);
+}
+
+=head2 GetPickupLocation
+
+    GetPickupLocation( $biblionumber, $borrowernumber )
+
+    Return hashref of available pickup location for biblio.
+
+=cut
+
+sub GetPickupLocation {
+    my ( $biblionumber, $borrowernumber ) = @_;
+
+    my @items = GetItemsInfo ( $biblionumber );
+    my %itypes;
+    my %branches;
+    my %restricted;
+    for my $i (0..$#items){
+        next if ($items[$i]->{notforloan} != 0) ||
+            ($items[$i]->{itemlost} != 0) || ($items[$i]->{withdrawn} != 0);
+        $itypes{$items[$i]->{'itype'}}++;
+        $branches{$items[$i]->{'homebranch'}}++;
+        defined $items[$i]->{'item_restricted'} ? $restricted{$items[$i]->{'item_restricted'}}++ : $restricted{'default'}++;
+    }
+    my $borrowercategory = C4::Members::GetBorrowerCategorycode( $borrowernumber );
+    my $brules = GetPickupRules( "BC", $borrowercategory );
+
+    my @itypes = keys %itypes;
+    my $irules = GetPickupRules("IT", @itypes);
+
+    my @branches = keys %branches;
+    my $branchRules = GetPickupRules("BR", @branches);
+
+    my @restricted; my $restrictedRules;
+    if (not defined $restricted{'default'}) {
+        @restricted = keys %restricted;
+        $restrictedRules = GetPickupRules("RA", @restricted);
+    }
+
+    my @pickup_loc;
+    if (defined $restricted{'default'}) {
+        foreach my $borrowerRule ( @{$brules} ) {
+            foreach my $itemRule ( @{$irules} ) {
+            if ( $itemRule->[0] eq $borrowerRule->[0] ) {
+                foreach my $branchRule ( @{$branchRules} ) {
+                    if ( $itemRule->[0] eq $branchRule->[0] ) {
+                        push @pickup_loc, { 'branch' => $branchRule->[1], 'pickup' => $branchRule->[0] };
+                    }
+                }
+            }
+        }
+    }
+    } else {
+        foreach my $borrowerRule ( @{$brules} ) {
+            foreach my $restrictedRule ( @{$restrictedRules} ) {
+                if ( $restrictedRule->[0] eq $borrowerRule->[0] ) {
+                    foreach my $branchRule ( @{$branchRules} ) {
+                        if ( $restrictedRule->[0] eq $branchRule->[0] ) {
+                            push @pickup_loc, { 'branch' => $branchRule->[1], 'pickup' => $branchRule->[0] };
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return \@pickup_loc;
+}
+
+sub GetPickupRules {
+    my $rule = shift;
+    my @params = @_;
+
+    my $dbh = C4::Context->dbh;
+    my $query = q{SELECT pickup_loc, allow_to FROM pickup_rules WHERE rule_type = ? AND ( };
+    my $first = 1;
+    foreach ( @params ) {
+        if (!$first){
+            $query .= "OR ";
+        } else {
+            $first = 0;
+        }
+        $query .= "allow_to = ? ";
+    }
+    $query .= ") ";
+    $query .= "GROUP BY pickup_loc" unless $rule eq "BR";
+    my $sth = $dbh->prepare($query);
+    $sth->execute( $rule, @params );
+
+    return $sth->fetchall_arrayref;
+}
+
+sub GetAllPickupRules {
+
+    my $dbh = C4::Context->dbh;
+    my $query = "SELECT * FROM pickup_rules";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+    my @result;
+    while(my $row = $sth->fetchrow_hashref()){
+        push @result, $row;
+    }
+    return \@result;
+}
+
+sub GetAvailableItemsByLocation {
+    my $items = shift @_;
+
+    my $dbh = C4::Context->dbh;
+    my $query = "SELECT restricted,itype,homebranch FROM items WHERE itemnumber = ?";
+    my $sth = $dbh->prepare($query);
+
+    my %pickup_loc;
+    foreach my $item (@$items){
+        $sth->execute($item);
+        my $item_info = $sth->fetchrow_hashref();
+        #if item not restricted
+        if (not defined $item_info->{'restricted'}){
+            my $rules = GetPickupRules("IT", $item_info->{'itype'});
+            my $name;
+            foreach (@$rules) {
+                $name .= $_->[0];
+            }
+            push @{$pickup_loc{$name}}, {
+                    'itemnumber' => $item,
+                    'homebranch' => $item_info->{'homebranch'},
+                };
+
+        } else {
+            my $rules = GetPickupRules("RA", $item_info->{'restricted'});
+            my $name;
+            foreach (@$rules) {
+                $name .= $_->[0];
+            }
+            push @{$pickup_loc{$name}}, {
+                    'itemnumber' => $item,
+                    'homebranch' => $item_info->{'homebranch'},
+                    };
+        }
+    }
+    return \%pickup_loc;
+}
+
+sub AddPickupRule {
+    my ($type, $value, $location) = @_;
+
+    my $dbh = C4::Context->dbh;
+    my $query_select = q/SELECT count(*) FROM pickup_rules WHERE rule_type = ?
+                                                      AND allow_to = ?
+                                                      AND pickup_loc = ?/;
+    my $sth = $dbh->prepare($query_select);
+    $sth->execute($type, $value, $location);
+    return if $sth->fetchrow_array > 0;
+    my $query_ins = q/INSERT INTO pickup_rules (
+                                        rule_type,
+                                        allow_to,
+                                        pickup_loc )
+                VALUES (?, ?, ?);
+        /;
+    my $sth_ins = $dbh->prepare($query_ins);
+    $sth_ins->execute($type, $value, $location);
+
+}
+
+sub DelPickupRule {
+    my ( $id ) = @_;
+
+    my $dbh = C4::Context->dbh;
+    my $query = "DELETE FROM pickup_rules WHERE pickuprule_id = ?";
+    my $sth = $dbh->prepare($query);
+    $sth->execute($id);
 }
 
 1;

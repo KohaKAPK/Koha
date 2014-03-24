@@ -112,6 +112,12 @@ Circulation:
                   slip: "open a print slip window"
             - .
         -
+            - pref: printSlipFromHoldsQueue
+              choices:
+                    yes: Enable
+                    no: "Don't enable"
+            - print reserve slip from holds queue.
+        -
             - Include the stylesheet at
             - pref: NoticeCSS
               class: url

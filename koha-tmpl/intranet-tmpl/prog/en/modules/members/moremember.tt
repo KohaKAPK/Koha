@@ -3,6 +3,7 @@
 [% IF Koha.Preference('ExportRemoveFields') OR Koha.Preference('ExportWithCsvProfile') %]
    [% SET exports_enabled = 1 %]
 [% END %]
+[% USE AuthorisedValues %]
 [% INCLUDE 'doc-head-open.inc' %]
 <title>Koha &rsaquo; Patrons &rsaquo;
 [% IF ( unknowuser ) %]
@@ -40,6 +41,12 @@ var relatives_borrowernumbers = new Array();
 
 var MSG_ADD_MESSAGE = _("Add a new message");
 var MSG_EXPORT_SELECT_CHECKOUTS = _("You must select checkout(s) to export");
+
+var auth_location = {};
+[% SET locloop = AuthorisedValues.Get( 'PICKUP' ) %]
+[% FOREACH locloo IN locloop %]
+auth_location["[% locloo.authorised_value %]"] = "[% locloo.lib |html_entity %]";
+[% END %]
 
 $(document).ready(function() {
     $('#finesholdsissues').tabs({
@@ -179,11 +186,11 @@ function validate1(date) {
     [% END %]
 
 <h3>[% UNLESS ( I ) %]
-   [% title %] [% firstname %] [% END %] [% surname %] ([% cardnumber %])</h3>
+   [% title %] [% firstname %] [% END %] [% surname %] ([% emailpro %])</h3>
  <div class="yui-u first">
 <div id="patron-information" style="padding : .5em;">
 
-     [% UNLESS ( I ) %][% IF ( othernames ) %]&ldquo;[% othernames %]&rdquo;[% END %]
+     [% UNLESS ( I ) %][% IF ( 0 ) %]&ldquo;[% othernames %]&rdquo;[% END %]
 
 <p class="address">
         [% address %]<br />
@@ -208,12 +215,13 @@ function validate1(date) {
         [% IF ( phone ) %]<li><span class="label">Primary phone: </span>[% phone %]</li>[% END %]
         [% IF ( mobile ) %]<li><span class="label">Mobile phone: </span>[% mobile %]</li>[% END %]
     [% END %]   	
-	[% IF ( fax ) %]<li><span class="label">Fax: </span>[% fax %]</li>[% END %]
     [% UNLESS ( I ) %]
         [% IF ( email ) %]<li><span class="label">Primary email:</span><a href="mailto:[% email %]">[% email %]</a></li>[% END %]
-        [% IF ( emailpro ) %]<li><span class="label">Secondary email: </span><a href="mailto:[% emailpro %]">[% emailpro %]</a></li>[% END %]
     [% END %]
-    [% IF ( initials ) %]<li><span class="label">Initials: </span>[% initials %]</li>[% END %]
+	[% IF ( fax ) %]<li><span class="label">Dokument: </span>[% AuthorisedValues.GetByCode( 'DOKUMENT',fax) %]</li>[% END %]
+    [% IF ( emailpro ) %]<li><span class="label">Nr dokumentu: </span>[% emailpro %]</li>[% END %]
+    [% IF ( initials ) %]<li><span class="label">PESEL: </span>[% initials %]</li>[% END %]
+    [% IF ( othernames ) %]<li><span class="label">Imię ojca: </span>[% othernames %]</li>[% END %]
     [% IF ( dateofbirth ) %]<li><span class="label">Date of birth:</span>[% dateofbirth %]</li>[% END %]
     [% IF ( sex ) %]<li><span class="label">Gender:</span>
     [% IF ( sex == 'F' ) %]Female[% ELSIF ( sex == 'M' ) %]Male[% ELSE %][% sex %][% END %]
@@ -309,25 +317,13 @@ function validate1(date) {
 [% END %]
 [% END %]
 
-[% IF ( EnhancedMessagingPreferences ) %]
-<div id="patron-messaging-prefs" style="padding-top: 1em;">
-<h3>Patron messaging preferences</h3>
-[% INCLUDE 'messaging-preference-form.inc' %]
- [% IF ( SMSSendDriver ) %]
-      <div class="rows"> <ol><li><span class="label">SMS number:</span>[% SMSnumber %]
-     </li></ol></div>
- [% END %]
-</div>
-<div class="action"><a href="memberentry.pl?op=modify&amp;borrowernumber=[% borrowernumber %]&amp;step=5">Edit</a></div>
-[% END %]
-
 </div>
  <div class="yui-u"> 
  <div id="patron-library-details">
  <h3>Library use</h3>
 <div class="rows"> 
 <ol>
-    <li><span class="label">Card number: </span>[% cardnumber %]</li>
+    <li><span class="label">Nr karty: </span>[% cardnumber %]</li>
 	<li><span class="label">Borrowernumber: </span> [% borrowernumber %]</li>
     <li><span class="label">Category: </span>[% description %] ([% categorycode %])</li>
     <li><span class="label">Registration date: </span>[% dateenrolled %]</li>
@@ -373,7 +369,7 @@ function validate1(date) {
  </div>
     <div class="action"><a href="memberentry.pl?op=modify&amp;borrowernumber=[% borrowernumber %]&amp;step=3">Edit</a></div>
  
-    [% UNLESS ( I ) %]
+    [% UNLESS ( 1 ) %]
  <div id="patron-alternate-address" style="padding-top: 1em;">
     <h3>Alternate address</h3>
     <div class="rows">  <ol><li><span class="label">Address: </span>[% B_address %]</li>
@@ -389,7 +385,6 @@ function validate1(date) {
     </div>
 </div>
 <div class="action"><a href="memberentry.pl?op=modify&amp;borrowernumber=[% borrowernumber %]&amp;step=6">Edit</a></div>
-    [% END %]
 
  <div id="patron-alternative-contact" style="padding-top: 1em;">
  <h3>Alternative contact</h3>
@@ -405,6 +400,7 @@ function validate1(date) {
     </ol></div>
 </div>
 <div class="action"><a href="memberentry.pl?op=modify&amp;borrowernumber=[% borrowernumber %]&amp;step=2">Edit</a></div>
+    [% END %]
 
 </div>
 </div>
@@ -508,6 +504,18 @@ function validate1(date) {
 
     [% ELSE %]<p>Patron has nothing on hold.</p>[% END %]
 	</div>
+[% IF ( EnhancedMessagingPreferences ) %]
+<div id="patron-messaging-prefs" style="padding-top: 1em;">
+<h3>Patron messaging preferences</h3>
+[% INCLUDE 'messaging-preference-form.inc' %]
+ [% IF ( SMSSendDriver ) %]
+      <div class="rows"> <ol><li><span class="label">SMS number:</span>[% SMSnumber %]
+     </li></ol></div>
+ [% END %]
+</div>
+<div class="action"><a href="memberentry.pl?op=modify&amp;borrowernumber=[% borrowernumber %]&amp;step=5">Edit</a></div>
+[% END %]
+
 
 </div>
 [% END %] <!-- unknowuser -->

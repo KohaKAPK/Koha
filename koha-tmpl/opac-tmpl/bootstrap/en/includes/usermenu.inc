@@ -78,7 +78,7 @@
                 [% END %]
             [% END %]
 
-            [% IF ( EnhancedMessagingPreferences ) %]
+            [% IF ( 0 ) %]
                 [% IF ( messagingview ) %]
                     <li class="active">
                 [% ELSE %]

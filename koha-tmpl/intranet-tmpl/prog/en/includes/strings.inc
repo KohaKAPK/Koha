@@ -27,5 +27,6 @@
     var NO = _("No");
     var YES = _("Yes");
     var INHOUSE_USE = _("On-site checkout");
+    var RESERVE_PROCESSING = ("Reserve printed");
 //]]>
 </script>

@@ -280,7 +280,10 @@ $template->param( branchloop => \@branch_loop );
 my @reserves  = GetReservesFromBorrowernumber( $borrowernumber );
 foreach my $res (@reserves) {
 
-    if ( $res->{'expirationdate'} eq '0000-00-00' ) {
+    if ( ($res->{'found'} eq 'W') && ($res->{'waitingdate'} ne '') ){
+        my $day = CalcWaitingDate($res->{'waitingdate'}, $res->{'branchcode'});
+        $res->{'expirationdate'} = $day->output("iso");
+    }elsif ( $res->{'expirationdate'} eq '0000-00-00' ) {
       $res->{'expirationdate'} = '';
     }
     $res->{'subtitle'} = GetRecordValue('subtitle', GetMarcBiblio($res->{'biblionumber'}), GetFrameworkCode($res->{'biblionumber'}));
@@ -342,7 +345,7 @@ foreach my $res (@reserves) {
     }
     # can be cancelled
     #$res->{'cancelable'} = 1 if ($res->{'wait'} && $res->{'atdestination'} && $res->{'found'} ne "1");
-    $res->{'cancelable'} = 1 if    ($res->{wait} and not $res->{found}) or (not $res->{wait} and not $res->{intransit});
+    $res->{'cancelable'} = 1 if   ( ($res->{wait} and not $res->{found}) or (not $res->{wait} and not $res->{intransit}) ) and (not $res->{print_status});
 
 }
 

@@ -31,7 +31,8 @@ use C4::Biblio;
 use C4::Items;
 use C4::Koha;   # GetItemTypes
 use C4::Branch; # GetBranches
-use C4::HoldsQueue qw(GetHoldsQueueItems);
+use C4::HoldsQueue qw(GetHoldsQueueItems GetTmpHoldInfo);
+use C4::Reserves;
 
 my $query = new CGI;
 my ( $template, $loggedinuser, $cookie ) = get_template_and_user(
@@ -45,19 +46,38 @@ my ( $template, $loggedinuser, $cookie ) = get_template_and_user(
     }
 );
 
+my @reservations = $query->param('reserve_id');
 my $params = $query->Vars;
 my $run_report     = $params->{'run_report'};
 my $branchlimit    = $params->{'branchlimit'};
 my $itemtypeslimit = $params->{'itemtypeslimit'};
+my $showprinted    = $params->{'showprinted'} ? 1 : 0;
+my $change_status  = $params->{'change_status'};
+
+if ( $change_status ) {
+    foreach my $reserve_id (@reservations) {
+        my $borrowernumber = GetReserve( $reserve_id )->{'borrowernumber'};
+        #my $itemnumber = ($reserveinfo->{'itemnumber'} != undef) ?
+        #                     $reserveinfo->{'itemnumber'} :
+        #                     GetItemNumberFromTmpHold;
+        #my $diffBranchSend = ($userenv_branch ne $diffBranchReturned) ? $diffBranchReturned : undef;
+        my $hold_info = GetTmpHoldInfo( $reserve_id );
+        my $transferTo = ($hold_info->{'holdingbranch'} ne $hold_info->{'pickbranch'}) ?
+                            $hold_info->{'pickbranch'} : undef;
+        ModReserveAffect( $hold_info->{'itemnumber'}, $borrowernumber, $transferTo );
+    }
+    C4::HoldsQueue::CreateQueue(1);
+}
 
 if ( $run_report ) {
     # XXX GetHoldsQueueItems() does not support $itemtypeslimit!
-    my $items = GetHoldsQueueItems($branchlimit, $itemtypeslimit);
+    my $items = GetHoldsQueueItems( $branchlimit, $showprinted, $itemtypeslimit);
     $template->param(
         branchlimit     => $branchlimit,
         total      => scalar @$items,
         itemsloop  => $items,
         run_report => $run_report,
+        showprinted => $showprinted,
     );
 }
 
@@ -70,10 +90,10 @@ foreach my $thisitemtype ( sort keys %$itemtypes ) {
         description => $itemtypes->{$thisitemtype}->{'description'},
     };
 }
-
 $template->param(
      branchloop => GetBranchesLoop(C4::Context->userenv->{'branch'}),
    itemtypeloop => \@itemtypesloop,
+   printenable => C4::Context->preference('printSlipFromHoldsQueue'),
 );
 
 # writing the template

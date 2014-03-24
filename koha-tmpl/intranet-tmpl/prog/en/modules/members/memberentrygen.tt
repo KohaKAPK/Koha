@@ -64,6 +64,19 @@
         });
     });
 
+function fillLoginInformation(){
+    var pesel = $("#initials").val();
+    var password = $("#emailpro").val();
+    var dateofbirth = ParsePesel(pesel);
+    $("#dateofbirth").val(dateofbirth);
+    $("#userid").val(pesel);
+    $("#password").val('');
+    $("#password2").val('');
+    $("#password").val(password);
+    $("#password2").val(password);
+    return true;
+};
+
     function clear_entry(node) {
         var original = $(node).parent();
         $("textarea", original).attr('value', '');
@@ -111,6 +124,7 @@
         var MSG_PASSWORD_MISMATCH = _("The passwords entered do not match");
 //]]>
 </script>
+<script type="text/javascript" src="[% themelang %]/js/pesel.js"></script>
 <script type="text/javascript" src="[% themelang %]/js/members.js"></script>
 </head>
 <body id="pat_memberentrygen" class="pat">
@@ -312,7 +326,7 @@
                 [% ELSE %]
                     <label for="initials">
                 [% END %]
-                Initials: </label>
+                PESEL/Login: </label>
                 <input type="text" id="initials" name="initials" size="20"  value="[% UNLESS opduplicate %][% initials %][% END %]" />
                 [% IF ( mandatoryinitials ) %]<span class="required">Required</span>[% END %]
             </li>
@@ -325,7 +339,7 @@
 			[% ELSE %]
 			<label for="othernames">
 			[% END %]
-            Other name: </label>
+            Imię ojca: </label>
             <input type="text" id="othernames" name="othernames" size="20"  value="[% UNLESS opduplicate %][% othernames %][% END %]" />
 [% IF ( mandatoryothernames ) %]<span class="required">Required</span>[% END %]
 		[% IF ( I ) %]<input type="hidden" name="sex" value="N" />[% END %]
@@ -360,6 +374,36 @@
        	</li>
         [% END %]
     [% END %]
+
+        [% UNLESS nofax %]
+    <li>
+      [% IF ( mandatoryfax ) %]
+      <label for="fax" class="required">
+      [% ELSE %]
+      <label for="fax">
+      [% END %]
+      Dokument: </label>
+
+      [% PROCESS 'av-build-dropbox.inc' name="fax", category="DOKUMENT", default=fax, class=focusAction, size = 20 %]
+	  [% IF ( mandatoryfax ) %]<span class="required">Required</span>[% END %]
+    </li>
+        [% END %]
+
+        [% UNLESS noemailpro %]
+    <li>
+      [% IF ( mandatoryemailpro ) %]
+      <label for="emailpro" class="required">
+      [% ELSE %]
+      <label for="emailpro">
+      [% END %]
+      Nr dokumentu: </label>
+        <input type="text" id="emailpro" name="emailpro" size="45" value="[% emailpro %]" class="[% focusAction %]" />
+	  [% IF ( mandatoryemailpro ) %]<span class="required">Required</span>[% END %]
+    </li>
+        [% END %]
+        <li>
+        <span class="required"><a href="#" onclick="fillLoginInformation();">Wypełnij pola</a></span>
+        </li>
 		</ol>
 	</fieldset>
 [% END # hide fieldset %]
@@ -632,7 +676,7 @@
       [% ELSE %]
       <label for="emailpro">
       [% END %]
-      Secondary email: </label>
+      Nr dokumentu: </label>
         <input type="text" id="emailpro" name="emailpro" size="45" value="[% emailpro %]" />
 	  [% IF ( mandatoryemailpro ) %]<span class="required">Required</span>[% END %]
     </li>
@@ -644,7 +688,7 @@
       [% ELSE %]
       <label for="fax">
       [% END %]
-      Fax: </label>
+      Dokument: </label>
         <input type="text" id="fax" name="fax" value="[% fax %]" />
 	  [% IF ( mandatoryfax ) %]<span class="required">Required</span>[% END %]
     </li>
@@ -1185,6 +1229,9 @@
 			[% END %]
 	  [% IF ( mandatorypassword ) %]<span class="required">Required</span>[% END %][% IF ( ERROR_password_mismatch ) %]<span class="required">Passwords do not match</span>[% END %]
 		</li>
+        <li>
+        <span class="required"><a href="#userid" onclick="fillLoginInformation();">Wypełnij pola</a></span>
+        </li>
 		</ol>
 		</fieldset>
         [% END # hide fieldset %][% END %]
@@ -1318,6 +1365,7 @@
                         [% END %]
                 </li>
             [% END %]
+
         </ol>
         [% IF pa_loo.class %]</fieldset>[% END %]
     [% END %]

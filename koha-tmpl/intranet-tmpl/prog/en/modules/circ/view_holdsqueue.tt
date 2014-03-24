@@ -17,12 +17,45 @@ $(document).ready(function() {
     $("#holdst").dataTable({
         "aaSorting": [[ 3, "asc" ]],
         "aoColumns": [
-            { "sType": "anti-the" },null,null,null,null,null,null,null,null,{ "sType": "title-string" },null
+            null,{ "sType": "anti-the" },null,null,null,null,null,null,null,null,{ "sType": "title-string" },null
         ],
         "sDom": 't',
         "bPaginate": false
     });
 });
+
+function printReservations(op) { //op=1 - print hold op=2 - mark hold as waiting
+    if(op === 1){
+        document.hold_print.submit();
+    } else if(op === 2) {
+        document.hold_print.action="/cgi-bin/koha/circ/view_holdsqueue.pl";
+        document.hold_print.target="";
+        $('#hold_print').append('<input type="hidden" name="run_report" value="1" />');
+        $('#hold_print').append('<input type="hidden" name="change_status" value="1" />');
+        $('#hold_print').append('<input type="hidden" name="showprinted" value="1" />');
+        $('#hold_print').append('<input type="hidden" name="branchlimit" value="[% branchlimit %]" />');
+        document.hold_print.submit();
+    }
+}
+
+function selectAll () {
+    if(document.hold_print.reserve_id.length == undefined ){
+        document.hold_print.reserve_id.checked=true;
+    }else if(document.hold_print.reserve_id.length > 0) {
+        for (var i=0; i < document.hold_print.reserve_id.length; i++) {
+            document.hold_print.reserve_id[i].checked=true;
+        }
+    }
+}
+function clearAll () {
+    if(document.hold_print.reserve_id.length == undefined ){
+        document.hold_print.reserve_id.checked=false;
+    }else if(document.hold_print.reserve_id.length > 0) {
+        for (var i=0; i < document.hold_print.reserve_id.length; i++) {
+            document.hold_print.reserve_id[i].checked=false;
+        }
+    }
+}
 //]]>
 </script>
 
@@ -48,10 +81,36 @@ $(document).ready(function() {
     [% ELSE %]
         <div class="dialog message">No items found.</div>
     [% END %]
+    [% IF ( printenable ) %]
+        <p>
+        <input id="printhold" type="submit" class="submit" onclick="printReservations(1)" value="Print checked holds"/>
+        [% IF (showprinted) %]
+                <input id="markreserve" type="submit" class="submit" onclick="printReservations(2)" value="Change status"/>
+                <input type="hidden" name="run_report" value="1"/>
+            <input type="hidden" name="branchlimit" value="[% branchlimit %]"/>
+        [% END %]
+        <a href="#" onclick="selectAll(); return false;">Select all</a> |
+        <a href="#" onclick="clearAll(); return false;">Clear all</a>
+        <br/>
+        </p>
+        <form id="showprinted" name="showprinted" method="get" action="/cgi-bin/koha/circ/view_holdsqueue.pl">
+            <input type="hidden" name="run_report" value="1"/>
+            <input type="hidden" name="branchlimit" value="[% branchlimit %]"/>
+            [% IF ( showprinted ) %]
+                <input type="hidden" name="showprinted" value="0"/>
+                <input id="submit_printed" type="submit" class="submit" value="Hide printed holds"/>
+            [% ELSE %]
+                <input type="hidden" name="showprinted" value="1"/>
+                <input id="submit_printed" type="submit" class="submit" value="Show printed holds"/>
+            [% END %]
+        </form>
+    [% END %]
     [% IF ( itemsloop ) %]
+        <form id="hold_print" name="hold_print" method="get" action="/cgi-bin/koha/circ/hold-pull-print.pl" target="_blank">
 <table id="holdst">
 	<thead>
 	<tr>
+       [% IF (printenable) %]<th class="hq-check">Check</th>[% END %]
         <th class="hq-title">Title</th>
         <th class="hq-collection">Collection</th>
         <th class="hq-itemtype">Item type</th>
@@ -67,6 +126,9 @@ $(document).ready(function() {
 	</thead>
      <tbody>[% FOREACH itemsloo IN itemsloop %]
         <tr>
+        [% IF ( printenable ) %]
+			<td class="hq-print"><input type="checkbox" id="res[% itemsloo.reserve_id %]" name="reserve_id" value="[% itemsloo.reserve_id %]"/></td>
+        [% END %]
             <td class="hq-title"><p><a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% itemsloo.biblionumber %]"><strong>[% itemsloo.title |html %]</strong> [% IF ( itemsloo.subtitle ) %][% itemsloo.subtitle %][% END %]</a></p>
                          <p><strong>[% itemsloo.author %]</strong>
                        <div class="hq-pubdata">  [% IF ( itemsloo.publishercode ) %][% itemsloo.publishercode %][% END %]
@@ -89,12 +151,15 @@ $(document).ready(function() {
                 [% END %]
             </td>
 			<td class="hq-patron"><p><a href="/cgi-bin/koha/circ/circulation.pl?findborrower=[% itemsloo.cardnumber %]#reserves">[% itemsloo.surname %], [% itemsloo.firstname %] ([% itemsloo.cardnumber %])</a></p> <p>[% itemsloo.phone %]</p></td>
-            <td class="hq-sendto">[% Branches.GetName( itemsloo.pickbranch ) %]</td>
-            <td class="hq-date"><span title="[% itemsloo.reservedate %]">[% itemsloo.reservedate | $KohaDates %]</span></td>
+            <td class="hq-sendto">[% Branches.GetName( itemsloo.pickbranch ) %] ( [% AuthorisedValues.GetByCode( 'PICKUP', itemsloo.pickup_location ) %] )</td>
+            <td class="hq-date"><span title="[% itemsloo.reservedate %]">[% itemsloo.date_time | $KohaDates %]</span></td>
             <td class="hq-notes">[% itemsloo.notes %]</td>
         </tr>
     [% END %]</tbody>
     </table>
+        [% IF ( printenable ) %]
+        </form>
+        [% END %]
 	[% END %] 
 	[% END %]
 

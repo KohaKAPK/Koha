@@ -539,12 +539,16 @@ foreach my $biblionumber (@biblionumbers) {
         $reserve{'suspend'} = $res->{'suspend'};
         $reserve{'suspend_until'} = $res->{'suspend_until'};
         $reserve{'reserve_id'} = $res->{'reserve_id'};
+        $reserve{'pickup_location'} = $res->{'pickup_location'};
+        $reserve{'print_status'} = $res->{'print_status'};
+        $reserve{'wbrcode'} = $res->{'branchcode'};
 
         if ( C4::Context->preference('IndependentBranches') && $flags->{'superlibrarian'} != 1 ) {
               $reserve{'branchloop'} = [ GetBranchDetail($res->{'branchcode'}) ];
         } else {
               $reserve{'branchloop'} = GetBranchesLoop($res->{'branchcode'});
         }
+        $reserve{'pickuploop'} = GetPickupLocation( $reserve{'biblionumber'}, $reserve{'borrowernumber'} );
 
         push( @reserveloop, \%reserve );
     }
@@ -586,6 +590,7 @@ foreach my $biblionumber (@biblionumbers) {
     if (@reserveloop) {
         $template->param( reserveloop => \@reserveloop );
     }
+    $biblioloopiter{'pickuploop'} = GetPickupLocation( $biblioloopiter{'biblionumber'}, $borrowerinfo->{borrowernumber} );
 
     push @biblioloop, \%biblioloopiter;
 }

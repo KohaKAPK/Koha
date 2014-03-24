@@ -1662,6 +1662,7 @@ CREATE TABLE `old_reserves` ( -- this table holds all holds/reserves that have b
   `lowestPriority` tinyint(1) NOT NULL, -- has this hold been pinned to the lowest priority in the holds queue (1 for yes, 0 for no)
   `suspend` BOOLEAN NOT NULL DEFAULT 0, -- in this hold suspended (1 for yes, 0 for no)
   `suspend_until` DATETIME NULL DEFAULT NULL, -- the date this hold is suspended until (NULL for infinitely)
+  `print_status` BOOLEAN NOT NULL DEFAULT 0, -- is this hold printed (1 - yes, 0 - no)
   PRIMARY KEY (`reserve_id`),
   KEY `old_reserves_borrowernumber` (`borrowernumber`),
   KEY `old_reserves_biblionumber` (`biblionumber`),
@@ -1864,6 +1865,7 @@ CREATE TABLE `reserves` ( -- information related to holds/reserves in Koha
   `lowestPriority` tinyint(1) NOT NULL,
   `suspend` BOOLEAN NOT NULL DEFAULT 0,
   `suspend_until` DATETIME NULL DEFAULT NULL,
+  `print_status` BOOLEAN NOT NULL DEFAULT 0, -- is this hold printed (1 - yes, 0 - no)
   PRIMARY KEY (`reserve_id`),
   KEY priorityfoundidx (priority,found),
   KEY `borrowernumber` (`borrowernumber`),
@@ -2536,6 +2538,7 @@ CREATE TABLE `user_permissions` (
 
 DROP TABLE IF EXISTS `tmp_holdsqueue`;
 CREATE TABLE `tmp_holdsqueue` (
+  `reserve_id` int(11) NOT NULL,
   `biblionumber` int(11) default NULL,
   `itemnumber` int(11) default NULL,
   `barcode` varchar(20) default NULL,
@@ -2550,7 +2553,8 @@ CREATE TABLE `tmp_holdsqueue` (
   `holdingbranch` varchar(10) default NULL,
   `pickbranch` varchar(10) default NULL,
   `notes` text,
-  `item_level_request` tinyint(4) NOT NULL default 0
+  `item_level_request` tinyint(4) NOT NULL default 0,
+  `print_status` BOOLEAN NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 --

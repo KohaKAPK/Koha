@@ -1,5 +1,7 @@
 [% USE Koha %]
 [% USE KohaDates %]
+[% USE Branches %]
+[% USE AuthorisedValues %]
 [% INCLUDE 'doc-head-open.inc' %]
 [% IF ( LibraryNameTitle ) %][% LibraryNameTitle %][% ELSE %]Koha online[% END %] catalog &rsaquo; Placing a hold
 [% INCLUDE 'doc-head-close.inc' %]
@@ -147,7 +149,7 @@
                                                 <div class="alert">Sorry, you are too young to reserve this material.</div>
                                             [% END %]
                                             [% IF ( bibitemloo.already_reserved ) %]
-                                                <div class="alert">You have already requested this title.</div>
+                                                <div class="alert">You have maximum holds requested for this title.</div>
                                             [% ELSE %]
                                                 [% UNLESS ( bibitemloo.bib_available ) %]
                                                     <div class="alert">No available items.</div>
@@ -189,32 +191,34 @@
                                                                 <label for="branch_[% bibitemloo.biblionumber %]">Pick up location:</label>
                                                                 [% UNLESS ( bibitemloo.holdable ) %]
                                                                     <select name="branch" id="branch_[% bibitemloo.biblionumber %]" disabled="disabled">
-                                                                        [% FOREACH branchloo IN bibitemloo.branchloop %]
-                                                                            [% IF ( branchloo.selected ) %]
-                                                                                <option value="[% branchloo.branchcode %]" selected="selected">[% branchloo.branchname %]</option>
-                                                                            [% ELSE %]
-                                                                                <option value="[% branchloo.branchcode %]">[% branchloo.branchname %]</option>
-                                                                            [% END %]
+                                                                        <option selected="selected" value="">Choose pickup location</option>
+                                                                        [% FOREACH pickuploo IN bibitemloo.pickuploop %]
+                                                                                <option value="[% pickuploo.branch %]|[% pickuploo.pickup %]">
+                                                                                [% Branches.GetName( pickuploo.branch ) %] (
+                                                                                [% AuthorisedValues.GetByCode( 'PICKUP', pickuploo.pickup, 'IS_OPAC' ) %] )
+                                                                                </option>
                                                                         [% END %]
                                                                     </select>
                                                                 [% ELSE %]
-                                                                    <select name="branch" id="branch_[% bibitemloo.biblionumber %]">
-                                                                        [% FOREACH branchloo IN bibitemloo.branchloop %]
-                                                                            [% IF ( branchloo.selected ) %]
-                                                                                <option value="[% branchloo.branchcode %]" selected="selected">[% branchloo.branchname %]</option>
-                                                                            [% ELSE %]
-                                                                                <option value="[% branchloo.branchcode %]">[% branchloo.branchname %]</option>
-                                                                            [% END %]
+                                                                    <select required name="branch" id="branch_[% bibitemloo.biblionumber %]">
+                                                                        <option selected="selected" value="">Choose pickup location</option>
+                                                                        [% FOREACH pickuploo IN bibitemloo.pickuploop %]
+                                                                                <option value="[% pickuploo.branch %]|[% pickuploo.pickup %]">
+                                                                                [% Branches.GetName( pickuploo.branch ) %] (
+                                                                                [% AuthorisedValues.GetByCode( 'PICKUP', pickuploo.pickup, 'IS_OPAC' ) %] )
+                                                                                </option>
                                                                         [% END %]
                                                                     </select>
                                                                 [% END # / UNLESS bibitemloo.holdable %]
                                                             </li>
                                                         [% END # / IF bibitemloo.holdable && choose_branch %]
                                                     [% END # / UNLESS singleBranchMode %]
+
                                                 </ul>
 
+                                                [% UNLESS ( bibitemloo.multiholds ) %]
                                                 <a class="toggle-hold-options" id="toggle-hold-options-[% bibitemloo.biblionumber %]" style="display:none;" href="#">Show more options</a>
-
+                                                [% END %]
                                                 <div id="hold-options-[% bibitemloo.biblionumber %]" class="hold-options">
 
                                                     <ul>
@@ -226,13 +230,15 @@
                                                             </li>
                                                         [% END %]
 
+                                                        [% IF ( 0 ) #add sys pref? %]
                                                         <li>
                                                             <label for="to[% bibitemloo.biblionumber %]">Hold not needed after:</label>
                                                             <input name="expiration_date_[% bibitemloo.biblionumber %]" id="to[% bibitemloo.biblionumber %]" size="10" class="holddateto" />
                                                             <span class="date-format to" data-biblionumber="[% bibitemloo.biblionumber %]">[% INCLUDE 'date-format.inc' %]</span>
                                                         </li>
+                                                        [% END %]
 
-                                                        [% IF ( OpacHoldNotes ) %]
+                                                        [% IF ( OpacHoldNotes ) AND ( !bibitemloo.multiholds ) %]
                                                             <li>
                                                                 <div class="notesrow" id="notesrow_[% bibitemloo.biblionumber %]">
                                                                     <label for="holdnotes[% bibitemloo.biblionumber %]">Hold notes:</label>
@@ -243,7 +249,7 @@
                                                             </li>
                                                         [% END # / IF OpacHoldNotes %]
 
-                                                        [% IF OPACItemHolds == '1' or OPACItemHolds == 'force' %]
+                                                        [% IF ( 0 )  #OPACItemHolds == '1' or OPACItemHolds == 'force' %]
                                                             <!-- ITEM HOLDS -->
                                                             <li class="lradio place_on_type" style="display:none;">
                                                                 <label class="radio inline" for="reqany_[% bibitemloo.biblionumber %]">Next available item</label>
@@ -278,9 +284,12 @@
                                                                 [% END %]
                                                             </li>
                                                         [% END # / IF OPACItemHolds %]
+                                                    [% IF ( OPACItemHolds ) AND ( bibitemloo.multiholds ) %]
+                                                        <input type="checkbox" name="reqtype_[% bibitemloo.biblionumber %]" id="reqspecific_[% bibitemloo.biblionumber %]" class="selectspecific" value="Specific" checked="checked" style="display: none" />[% END %]
                                                     </ul>
+                                                </div> <!-- / #hold-options-[% bibitemloo.biblionumber %] -->
 
-                                                    [% IF OPACItemHolds == '1' || OPACItemHolds == 'force' %]
+                                                    [% IF ( OPACItemHolds ) AND ( bibitemloo.multiholds ) %]
                                                         <table class="copiesrow table table-bordered table-striped" id="copiesrow_[% bibitemloo.biblionumber %]">
                                                             <caption>Select a specific item:</caption>
                                                             <tr>
@@ -298,13 +307,14 @@
                                                                     <th>Vol info</th>
                                                                 [% END %]
                                                                 <th>Information</th>
+                                                                <th>Notes</th>
                                                             </tr>
 
                                                             [% FOREACH itemLoo IN bibitemloo.itemLoop %]
                                                                 <tr class="[% itemLoo.backgroundcolor %]">
                                                                     <td class="copynumber">
-                                                                        [% IF ( itemLoo.available ) %]
-                                                                            <input type="radio" class="checkitem checkitem_[% bibitemloo.biblionumber %]" name="checkitem_[% bibitemloo.biblionumber %]" value="[% itemLoo.itemnumber %]" />
+                                                                        [% IF ( itemLoo.available ) && ( !itemLoo.already_reserved ) %]
+                                                                            <input type="checkbox" class="checkitem checkitem_[% bibitemloo.biblionumber %]" name="checkitem_[% bibitemloo.biblionumber %]" value="[% itemLoo.itemnumber %]" />
                                                                         [% ELSE %]
                                                                             <input disabled="disabled" type="radio" class="checkitem" name="checkitem" value="[% itemLoo.itemnumber %]"
                                                                                    style="display:none;" />
@@ -377,11 +387,13 @@
                                                                             <span class="notonhold">Not on hold</span>
                                                                         [% END # / IF ( itemLoo.reservedate )%]
                                                                     </td>
+                                                                    <td class="notes">
+                                                                    <textarea id="notes_it[% itemLoo.itemnumber %]" name="notes_it[% itemLoo.itemnumber %]" cols="25" rows="2"></textarea>
+                                                                    </td>
                                                                 </tr>
                                                             [% END # / FOREACH itemLoo IN bibitemloo.itemLoop%]
                                                         </table> <!-- / #copiesrow_[% bibitemloo.biblionumber %] -->
                                                     [% END # / IF ( OPACItemHolds )%]
-                                                </div> <!-- / #hold-options-[% bibitemloo.biblionumber %] -->
                                             </fieldset>
                                         [% END # / IF ( bibitemloo.holdable ) %]
                                     </div> <!-- / .holdrow -->
@@ -389,7 +401,11 @@
                             </div><!-- #bigloop -->
 
                             [% UNLESS ( none_available ) %]
-                                <input type="submit" value="Place hold" class="btn placehold" />
+                                [% IF ( bibitemloo.reservable ) > 0 %]
+                                <input type="submit" value="Place Hold" class="btn placehold" />
+                                [% ELSE %]
+                                <input type="submit" value="Reserve" class="btn placehold" />
+                                [% END %]
                             [% END %]
 
                         </form>
@@ -458,7 +474,7 @@
         });
 
         // Hides all 'specific copy' table rows on load.
-        $(".copiesrow").hide();
+        $(".copiesrow").show();
 
         [% IF OPACItemHolds == 'force' %]
           [% FOREACH bibitemloo IN bibitemloop %]
@@ -589,27 +605,40 @@
             $(".confirmjs:checked").each(function() {
                 var biblioNum = $(this).val();
                 biblionumbers += biblioNum + "/";
-                selections += biblioNum + "/";
+
+                // Add the pickup location
+                var branchSel = $("#branch_" + biblioNum);
 
                 // If the 'specific copy' radio button is checked
                 if ($("#reqspecific_" + biblioNum + ":checked").size() > 0) {
                     // Find the selected copy
-                    var item = $(".checkitem_" + biblioNum + ":checked");
-                    if ($(item).size() == 0) {
+                    if ($(".checkitem_" + biblioNum + ":checked").size() < 1) {
                         badBib = biblioNum;
                         return false;
                     } else {
-                      selections += $(item).val();
+                        $(".checkitem_" + biblioNum + ":checked").each(function() {
+                            if ($(this).size() == 0) {
+                                badBib = biblioNum;
+                                return false;
+                            } else {
+                                selections += biblioNum + "/";
+                                selections += $(this).val() + "/";
+                                // Add the pickup location
+                                if (branchSel.size() > 0) {
+                                    selections += $(branchSel).val();
+                                }
+                                selections += "/";
+                            }
+                        })
                     }
+                } else {
+                    selections += biblioNum + "/";
+                    selections += "/";
+                    if (branchSel.size() > 0) {
+                        selections += $(branchSel).val();
+                    }
+                    selections += "/";
                 }
-                selections += "/";
-
-                // Add the pickup location
-                var branchSel = $("#branch_" + biblioNum);
-                if (branchSel.size() > 0) {
-                    selections += $(branchSel).val();
-                }
-                selections += "/";
                 return true;
             });
 

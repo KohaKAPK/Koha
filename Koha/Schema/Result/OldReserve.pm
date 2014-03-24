@@ -185,6 +185,11 @@ __PACKAGE__->add_columns(
     datetime_undef_if_invalid => 1,
     is_nullable => 1,
   },
+  "print_status",
+  { data_type => "integer", default_value => 0, is_nullable => 0 },
+  "pickup_location",
+  { data_type => "varchar", is_nullable => 1, size => 10 },
+
 );
 
 =head1 PRIMARY KEY

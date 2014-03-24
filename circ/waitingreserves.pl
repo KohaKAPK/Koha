@@ -106,10 +106,11 @@ foreach my $num (@getreserves) {
     my $getborrower = GetMember(borrowernumber => $num->{'borrowernumber'});
     my $itemtypeinfo = getitemtypeinfo( $gettitle->{'itemtype'} );  # using the fixed up itype/itemtype
     $getreserv{'waitingdate'} = $num->{'waitingdate'};
-    my ( $waiting_year, $waiting_month, $waiting_day ) = split (/-/, $num->{'waitingdate'});
-    ( $waiting_year, $waiting_month, $waiting_day ) =
-      Add_Delta_Days( $waiting_year, $waiting_month, $waiting_day,
-        C4::Context->preference('ReservesMaxPickUpDelay'));
+
+    my $date = C4::Dates->new($num->{'waitingdate'}, "iso");
+    my $calendar = C4::Calendar->new( branchcode => $gettitle->{homebranch} );
+    my $day = $calendar->addDateForReserves($date, C4::Context->preference('ReservesMaxPickupDelay'));
+    my ( $waiting_year, $waiting_month, $waiting_day ) = split (/-/, $day->output('iso'));
     my $calcDate = Date_to_Days( $waiting_year, $waiting_month, $waiting_day );
 
     $getreserv{'itemtype'}       = $itemtypeinfo->{'description'};
@@ -135,6 +136,9 @@ foreach my $num (@getreserves) {
     if ( $borEmail ) {
         $getreserv{'borrowermail'}  = $borEmail;
     }
+
+    my $reserve = GetReserve($num->{reserve_id});
+    $getreserv{'pickup_location'} = $reserve->{'pickup_location'};
 
     if ($today > $calcDate) {
         if ($cancelall) {

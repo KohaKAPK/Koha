@@ -1,5 +1,6 @@
 [% USE Koha %]
 [% USE KohaDates %]
+[% USE AuthorisedValues %]
 [% SET userupdateview = 1 %]
 
 [% INCLUDE 'doc-head-open.inc' %]
@@ -65,6 +66,20 @@
                                     <label>Card number</label>
                                     <input type="text" value="[% borrower.cardnumber %]" disabled="disabled"/>
                                 </li>
+
+                                    [% UNLESS hidden.defined('initials') %]
+                                        <li>
+                                            [% IF mandatory.defined('initials') %]
+                                                <label for="borrower_initials" class="required">
+                                            [% ELSE %]
+                                                <label for="borrower_initials">
+                                            [% END %]
+                                            Login/PESEL:</label>
+
+                                            <input type="text" id="borrower_initials" name="borrower_initials" value="[% borrower.initials %]" />
+                                            [% IF mandatory.defined('initials') %]<span class="required">Required</span>[% END %]
+                                        </li>
+                                    [% END %]
 
                                 [% UNLESS hidden.defined('branchcode') %]
                                     <li>
@@ -154,7 +169,21 @@
                                         </li>
                                     [% END %]
 
-                                    [% UNLESS hidden.defined('dateofbirth') %]
+                                     [% UNLESS hidden.defined('othernames') %]
+                                        <li>
+                                            [% IF mandatory.defined('othernames') %]
+                                                <label for="borrower_othernames" class="required">
+                                            [% ELSE %]
+                                                <label for="borrower_othernames">
+                                            [% END %]
+                                            Father name:</label>
+
+                                            <input type="text" id="borrower_othernames" name="borrower_othernames" value="[% borrower.othernames %]" />
+                                            [% IF mandatory.defined('othernames') %]<span class="required">Required</span>[% END %]
+                                        </li>
+                                    [% END %]
+
+                                   [% UNLESS hidden.defined('dateofbirth') %]
                                         <li>
                                             [% IF mandatory.defined('dateofbirth') %]
                                                 <label for="borrower_dateofbirth" class="required">
@@ -175,33 +204,33 @@
                                         </li>
                                     [% END %]
 
-                                    [% UNLESS hidden.defined('initials') %]
-                                        <li>
-                                            [% IF mandatory.defined('initials') %]
-                                                <label for="borrower_initials" class="required">
-                                            [% ELSE %]
-                                                <label for="borrower_initials">
-                                            [% END %]
-                                            Initials:</label>
-
-                                            <input type="text" id="borrower_initials" name="borrower_initials" value="[% borrower.initials %]" />
-                                            [% IF mandatory.defined('initials') %]<span class="required">Required</span>[% END %]
-                                        </li>
+                            [% UNLESS hidden.defined('fax') %]
+                                <li>
+                                    [% IF mandatory.defined('fax') %]
+                                        <label for="borrower_fax" class="required">
+                                    [% ELSE %]
+                                        <label for="borrower_fax">
                                     [% END %]
+                                    ID:</label>
 
-                                    [% UNLESS hidden.defined('othernames') %]
-                                        <li>
-                                            [% IF mandatory.defined('othernames') %]
-                                                <label for="borrower_othernames" class="required">
-                                            [% ELSE %]
-                                                <label for="borrower_othernames">
-                                            [% END %]
-                                            Other names:</label>
+                                    <input type="text" id="borrower_fax" name="borrower_fax" value="[% AuthorisedValues.GetByCode( 'DOKUMENT', borrower.fax ) %]" />
+                                    [% IF mandatory.defined('fax') %]<span class="required">Required</span>[% END %]
+                                </li>
+                            [% END %]
 
-                                            <input type="text" id="borrower_othernames" name="borrower_othernames" value="[% borrower.othernames %]" />
-                                            [% IF mandatory.defined('othernames') %]<span class="required">Required</span>[% END %]
-                                        </li>
+                            [% UNLESS hidden.defined('emailpro') %]
+                                <li>
+                                    [% IF mandatory.defined('emailpro') %]
+                                        <label for="borrower_emailpro" class="required">
+                                    [% ELSE %]
+                                        <label for="borrower_emailpro">
                                     [% END %]
+                                    ID number:</label>
+
+                                    <input type="text" id="borrower_emailpro" name="borrower_emailpro" value="[% borrower.emailpro %]" />
+                                    [% IF mandatory.defined('emailpro') %]<span class="required">Required</span>[% END %]
+                                </li>
+                            [% END %]
 
                                     [% UNLESS hidden.defined('sex') %]
                                         <li class="lradio">
@@ -417,33 +446,6 @@
                                 </li>
                             [% END %]
 
-                            [% UNLESS hidden.defined('emailpro') %]
-                                <li>
-                                    [% IF mandatory.defined('emailpro') %]
-                                        <label for="borrower_emailpro" class="required">
-                                    [% ELSE %]
-                                        <label for="borrower_emailpro">
-                                    [% END %]
-                                    Secondary email:</label>
-
-                                    <input type="text" id="borrower_emailpro" name="borrower_emailpro" value="[% borrower.emailpro %]" />
-                                    [% IF mandatory.defined('emailpro') %]<span class="required">Required</span>[% END %]
-                                </li>
-                            [% END %]
-
-                            [% UNLESS hidden.defined('fax') %]
-                                <li>
-                                    [% IF mandatory.defined('fax') %]
-                                        <label for="borrower_fax" class="required">
-                                    [% ELSE %]
-                                        <label for="borrower_fax">
-                                    [% END %]
-                                    Fax:</label>
-
-                                    <input type="text" id="borrower_fax" name="borrower_fax" value="[% borrower.fax %]" />
-                                    [% IF mandatory.defined('fax') %]<span class="required">Required</span>[% END %]
-                                </li>
-                            [% END %]
                         </ol>
                     </fieldset>
                 [% END %]

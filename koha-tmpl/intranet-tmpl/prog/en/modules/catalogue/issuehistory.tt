@@ -13,6 +13,11 @@ $(document).ready(function() {
             "aaSorting": [[ 4, "desc" ]]
         })
     );
+    $("#table_localuse").dataTable($.extend(true, {}, dataTablesDefaults, {
+            "aaSorting": [[ 3, "desc" ]]
+            })
+        );
+
 }); </script>
 
 </head>
@@ -90,6 +95,31 @@ $(document).ready(function() {
 
     [% END %]
 </div>
+[% IF ( localuse ) %]
+    <h4>Local use [% localuse %] times</h4>
+    <table id="table_localuse">
+    <thead><tr>
+        <th>Sygnatura</th>
+        <th>Barcode</th>
+        <th>Data</th>
+        <th>Ilosc uzyc:</th>
+    </tr></thead>
+    <tbody>
+    [% FOREACH statistic IN statistics %]
+        [% UNLESS ( loop.odd ) %]<tr class="highlight">[% ELSE %]<tr>[% END %]
+        <td>[% statistic.itemcallnumber %]</td>
+        <td>[% IF ( issue.barcode ) %]
+            [% statistic.barcode %]
+        [% ELSE %]
+            &nbsp;
+        [% END %]</td>
+        <td>[% statistic.date %]</td>
+        <td>[% statistic.count %]</td>
+        </tr>
+        [% END %]
+    </tbody>
+    </table>
+[% END %]
 
 </div>
 </div>

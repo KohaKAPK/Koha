@@ -1,5 +1,6 @@
 [% USE KohaDates %]
 [% USE Branches %]
+[% USE AuthorisedValues %]
 [% INCLUDE 'doc-head-open.inc' %]
 <title>Koha &rsaquo; Circulation &rsaquo; Holds awaiting pickup</title>
 [% INCLUDE 'doc-head-close.inc' %]
@@ -16,7 +17,8 @@
                 { "sType": "anti-the", "aTargets" : [ "anti-the" ] },
                 { "sType": "title-string", "aTargets" : [ "title-string" ] }
             ],
-            "sPaginationType": "four_button"
+            "sPaginationType": "four_button",
+            "iDisplayLength": -1,
         }));
       });
 //]]>
@@ -100,7 +102,8 @@
                         [% IF ( reserveloo.borrowermail ) %]<br /><a href="mailto:[% reserveloo.borrowermail %]?subject=Hold waiting: [% reserveloo.title %]">
                         [% reserveloo.borrowermail %]</a>[% END %]
                     </td>
-                    <td>[% Branches.GetName( reserveloo.homebranch ) %]<br />[% reserveloo.itemcallnumber %]</td>
+                    <td>[% Branches.GetName( reserveloo.homebranch ) %]<br />[% reserveloo.itemcallnumber %]<br />
+                        [% reserveloo.pickbranch %] ( [% AuthorisedValues.GetByCode( 'PICKUP', reserveloo.pickup_location ) %] )</td>
                     <td>[% reserveloo.copynumber %]</td>
                     <td>[% reserveloo.enumchron %]</td>
                     <td>
@@ -159,7 +162,8 @@
                         [% IF ( overloo.borrowermail ) %]<a href="mailto:[% overloo.borrowermail %]?subject=Reservation: [% overloo.title |url %]">
         [% overloo.borrowermail %]</a>[% END %]
                     </td>
-                    <td>[% Branches.GetName( overloo.homebranch ) %] [% overloo.itemcallnumber %]</td>
+                    <td>[% Branches.GetName( overloo.homebranch ) %] [% overloo.itemcallnumber %]<br />
+                        [% overloo.pickbranch %] ( [% AuthorisedValues.GetByCode( 'PICKUP', overloo.pickup_location ) %] )</td>
                     <td>[% overloo.copynumber %]</td>
                     <td>[% overloo.enumchron %]</td>
                     <td><form name="cancelReserve" action="waitingreserves.pl" method="post">

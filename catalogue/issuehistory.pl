@@ -23,6 +23,7 @@ use CGI qw ( -utf8 );
 use C4::Auth;
 use C4::Output;
 
+use C4::Items;
 use C4::Circulation;    # GetBiblioIssues
 use C4::Biblio;    # GetBiblio GetBiblioFromItemNumber
 use C4::Search;		# enabled_staff_search_views
@@ -49,6 +50,7 @@ if (C4::Context->preference("HidePatronName")) {
 }
 
 my ($issues,$biblio,$barcode);
+my $items;
 if ($itemnumber){
 	$issues=GetItemIssues($itemnumber);
 	$biblio=GetBiblioFromItemNumber($itemnumber);
@@ -65,9 +67,35 @@ if ($itemnumber){
 	$template->param(
                %{$biblio},
 	);
+    $items = GetItemnumbersForBiblio($biblionumber);
 } 
 
+my (@statistics, $localuse);
+foreach my $item (@{$items}){
+    my $dbh = C4::Context->dbh;
+    my $query = "SELECT DATE(datetime) as date, count(*) as counter
+        FROM statistics
+        WHERE type like 'localuse' AND itemnumber = ?
+        GROUP BY DATE(datetime)
+        ORDER BY 1 DESC";
+    my $sth = $dbh->prepare($query);
+    $sth->execute($item);
+    while ( my $results = $sth->fetchrow_hashref ) {
+        if ($results->{counter})   {
+
+            $localuse = $localuse + $results->{counter} ;
+            my $itemInfo = GetItem($item);
+            $itemInfo->{count} = $results->{counter};
+            $itemInfo->{date} = $results->{date};
+            push @statistics, $itemInfo;
+        }
+    }
+}
+
+
 $template->param(
+    statistics   => \@statistics,
+    localuse     => $localuse,
     total        => scalar @$issues,
     issues       => $issues,
 	issuehistoryview => 1,

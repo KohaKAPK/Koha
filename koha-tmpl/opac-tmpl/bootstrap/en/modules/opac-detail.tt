@@ -542,7 +542,7 @@
                         [% IF (SeparateHoldings) %]
                             <li><a href="#otherholdings">Other holdings ( [% otheritemloop.size || 0 %] )</a></li>
                         [% END %]
-                        [% IF ( MARCNOTES || notes || ( SyndeticsEnabled && SyndeticsSummary && SYNDETICS_SUMMARY )) %]
+                        [% IF ( 0) #( MARCNOTES || notes || ( SyndeticsEnabled && SyndeticsSummary && SYNDETICS_SUMMARY )) %]
                             <li id="tab_descriptions"> <a href="#descriptions">Title notes</a></li>
                         [% END %]
                         [% IF ( SYNDETICS_TOC ) %]
@@ -696,7 +696,7 @@
                         </div>
                     [% END # / SeparateHoldings %]
 
-                    [% IF ( MARCNOTES || notes || ( SyndeticsEnabled && SyndeticsSummary && SYNDETICS_SUMMARY )) %]
+                    [% IF 0 #( MARCNOTES || notes || ( SyndeticsEnabled && SyndeticsSummary && SYNDETICS_SUMMARY )) %]
                         <div id="descriptions">
                             <div class="content_set">
 
@@ -1274,7 +1274,10 @@
                     [% IF ( itemdata_copynumber ) %]<td class="copynumber">[% ITEM_RESULT.copynumber %]</td>[% END %]
                     <td class="status">[% INCLUDE 'item-status-schema-org.inc' item = ITEM_RESULT %][% INCLUDE 'item-status.inc' item = ITEM_RESULT %]</td>
                     [% IF ( itemdata_itemnotes ) %]<td class="notes" property="description">[% ITEM_RESULT.itemnotes %]</td>[% END %]
-                    <td class="date_due"><span title="[% ITEM_RESULT.datedue %]">[% ITEM_RESULT.datedue | $KohaDates as_due_date => 1 %]</span></td>
+                    <td class="date_due">
+                    [%  UNLESS ( ITEM_RESULT.datedue ) && (( ITEM_RESULT.itemnotforloan ) || (ITEM_RESULT.restrictedopac))%]
+                    <span title="[% ITEM_RESULT.datedue %]">[% ITEM_RESULT.datedue | $KohaDates as_due_date => 1 %]</span>
+                    [% END %]</td>
                     [% IF ( OPACShowBarcode ) %]<td class="barcode" property="serialNumber">[% ITEM_RESULT.barcode %]</td>[% END %]
                     [% IF holds_count.defined || show_priority %]
                         <td class="holds_count">

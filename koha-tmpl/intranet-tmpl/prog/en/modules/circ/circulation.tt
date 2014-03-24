@@ -41,6 +41,12 @@ var relatives_borrowernumbers = new Array();
     relatives_borrowernumbers.push("[% b %]");
 [% END %]
 
+var auth_location = {};
+[% SET locloop = AuthorisedValues.Get( 'PICKUP' ) %]
+[% FOREACH locloo IN locloop %]
+auth_location["[% locloo.authorised_value %]"] = "[% locloo.lib |html_entity %]";
+[% END %]
+
 var MSG_ADD_MESSAGE = _("Add a new message");
 var MSG_EXPORT_SELECT_CHECKOUTS = _("You must select checkout(s) to export");
 [% IF ( borrowernumber ) %]if($.cookie("holdfor") != [% borrowernumber %]){ $.cookie("holdfor",null, { path: "/", expires: 0 }); }[% ELSE %]$.cookie("holdfor",null, { path: "/", expires: 0 });[% END %]
@@ -710,7 +716,8 @@ No patron matched <span class="ex">[% message %]</span>
 			            <ul>
 			                <li> <a href="/cgi-bin/koha/reserve/request.pl?biblionumber=[% WaitingReserveLoo.biblionumber %]">[% WaitingReserveLoo.title |html %]</a> ([% WaitingReserveLoo.itemtype %]), [% IF ( WaitingReserveLoo.author ) %]by [% WaitingReserveLoo.author %][% END %] [% IF ( WaitingReserveLoo.itemcallnumber ) %][[% WaitingReserveLoo.itemcallnumber %]] [% END %]Hold placed on [% WaitingReserveLoo.reservedate %].
 			            [% IF ( WaitingReserveLoo.waitingat ) %]
-			                <br />[% IF ( WaitingReserveLoo.waitinghere ) %]<strong class="waitinghere">[% ELSE %]<strong>[% END %]Waiting at [% WaitingReserveLoo.waitingat %]</strong>
+			                <br />[% IF ( WaitingReserveLoo.waitinghere ) %]<strong class="waitinghere">[% ELSE %]<strong>[% END %]Waiting at [% WaitingReserveLoo.waitingat %]<br>
+                           [% AuthorisedValues.GetByCode( 'PICKUP', WaitingReserveLoo.location ) %] </strong>
 			            [% END %]
 			                </li>
 			            </ul>

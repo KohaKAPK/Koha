@@ -68,12 +68,19 @@ if ($CancelBorrowerNumber) {
 else {
     for (my $i=0;$i<$count;$i++){
         undef $itemnumber[$i] unless $itemnumber[$i] ne '';
+
+        my $pickup_loc; my $branch;
+        if ( $branch[$i] =~ /\|/ ) {
+          ( $branch, $pickup_loc ) =  split /\|/, $branch[$i];
+        }
+
         ModReserve({
             rank => $rank[$i],
             reserve_id => $reserve_id[$i],
-            branchcode => $branch[$i],
+            branchcode => $branch,
             itemnumber => $itemnumber[$i],
-            suspend_until => $suspend_until[$i]
+            suspend_until => $suspend_until[$i],
+            pickup_location => $pickup_loc,
         });
     }
 }

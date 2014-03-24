@@ -437,6 +437,13 @@ foreach my $limit(@limits) {
         $available = 1;
     }
 }
+foreach my $index (@indexes) {
+    if ($index =~ /czas/) {
+        push @limits, ("mc-itype,phr:CR");
+        $index = "ti,phr";
+    }
+}
+
 $template->param(available => $available);
 
 # append year limits if they exist

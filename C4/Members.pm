@@ -1977,7 +1977,7 @@ SET  dateexpiry='$date'
 WHERE borrowernumber='$borrowerid'
 EOF
 
-    AddEnrolmentFeeIfNeeded( $borrower->{categorycode}, $borrower->{borrowernumber} );
+#AddEnrolmentFeeIfNeeded( $borrower->{categorycode}, $borrower->{borrowernumber} );
 
     logaction("MEMBERS", "RENEW", $borrower->{'borrowernumber'}, "Membership renewed")if C4::Context->preference("BorrowersLog");
     return $date if ($sth);

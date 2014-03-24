@@ -17,8 +17,8 @@
 [% CASE 'surname'             %]<span>Surname</span>
 [% CASE 'firstname'           %]<span>First name</span>
 [% CASE 'title'               %]<span>Title</span>
-[% CASE 'othernames'          %]<span>Other names</span>
-[% CASE 'initials'            %]<span>Initials</span>
+[% CASE 'othernames'          %]<span>Imie ojca</span>
+[% CASE 'initials'            %]<span>PESEL</span>
 [% CASE 'streetnumber'        %]<span>Street number</span>
 [% CASE 'streettype'          %]<span>Street type</span>
 [% CASE 'address'             %]<span>Address</span>
@@ -30,8 +30,8 @@
 [% CASE 'email'               %]<span>Email</span>
 [% CASE 'phone'               %]<span>Primary Phone</span>
 [% CASE 'mobile'              %]<span>Primary Mobile Phone</span>
-[% CASE 'fax'                 %]<span>Fax</span>
-[% CASE 'emailpro'            %]<span>Secondary email</span>
+[% CASE 'fax'                 %]<span>Dokument</span>
+[% CASE 'emailpro'            %]<span>Nr dokumentu</span>
 [% CASE 'phonepro'            %]<span>Secondary phone</span>
 [% CASE 'B_streetnumber'      %]<span>Alternate address: Street number</span>
 [% CASE 'B_streettype'        %]<span>Alternate address: Street type</span>

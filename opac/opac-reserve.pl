@@ -185,8 +185,13 @@ foreach my $biblioNumber (@biblionumbers) {
 #
 if ( $query->param('place_reserve') ) {
     my $reserve_cnt = 0;
+    my %biblio_cnt;
     if ($maxreserves) {
-        $reserve_cnt = GetReservesFromBorrowernumber( $borrowernumber );
+        my @reserves = GetReservesFromBorrowernumber( $borrowernumber );
+        $reserve_cnt = @reserves;
+        foreach my $res (@reserves) {
+            $biblio_cnt{$res->{'biblionumber'}}++;
+        }
     }
 
     # List is composed of alternating biblio/item/branch
@@ -220,6 +225,11 @@ if ( $query->param('place_reserve') ) {
         my $itemNum   = shift(@selectedItems);
         my $branch    = shift(@selectedItems);    # i.e., branch code, not name
 
+        my $pickup_loc;
+        if ( $branch =~ /\|/ ) {
+          ( $branch, $pickup_loc ) =  split /\|/, $branch;
+        }
+
         my $canreserve = 0;
 
         my $singleBranchMode = C4::Context->preference("singleBranchMode");
@@ -249,8 +259,11 @@ if ( $query->param('place_reserve') ) {
 
         my $expiration_date = $query->param("expiration_date_$biblioNum");
 
+        my $notes = $query->param('notes_'.$biblioNum)||'';
+
       # If a specific item was selected and the pickup branch is the same as the
       # holdingbranch, force the value $rank and $found.
+        my $rights;
         my $rank = $biblioData->{rank};
         if ( $itemNum ne '' ) {
             $canreserve = 1 if CanItemBeReserved( $borrowernumber, $itemNum ) eq 'OK';
@@ -260,18 +273,28 @@ if ( $query->param('place_reserve') ) {
                 $found = 'W'
                   unless C4::Context->preference('ReservesNeedReturns');
             }
+            $notes = $query->param('notes_it'.$itemNum) || $notes;
+            $canreserve = 0 if ($item->{'holdingbranch'} ne $branch ||
+                           ## ( grep {$_ eq $pickup_loc } GetPickupRules($item->{'itype'}, "IT")) );
+                           ( grep {$_ eq $pickup_loc } GetPickupRules("IT", $item->{'itype'})) );
+            $rights = C4::Circulation::GetIssuingRule( $borr->{categorycode}, $item->{'itype'}, $branch );
         }
         else {
             $canreserve = 1 if CanBookBeReserved( $borrowernumber, $biblioNum ) eq 'OK';
 
+            $rights = C4::Circulation::GetIssuingRule( $borr->{categorycode}, $biblioData->{'itype'}, $branch );
+
             # Inserts a null into the 'itemnumber' field of 'reserves' table.
             $itemNum = undef;
         }
-        my $notes = $query->param('notes_'.$biblioNum)||'';
 
         if (   $maxreserves
             && $reserve_cnt >= $maxreserves )
         {
+            $canreserve = 0;
+        }
+
+        if ( $biblio_cnt{$biblioNum} && $biblio_cnt{$biblioNum} >= $rights->{maxholdsperbiblio} ) {
             $canreserve = 0;
         }
 
@@ -283,9 +306,11 @@ if ( $query->param('place_reserve') ) {
                 [$biblioNum], $rank,
                 $startdate,   $expiration_date,
                 $notes,       $biblioData->{title},
-                $itemNum,     $found
+                $itemNum,     $found,
+                $pickup_loc,
             );
             ++$reserve_cnt;
+            $biblio_cnt{$biblioNum}++;
         }
     }
 
@@ -351,7 +376,7 @@ foreach my $res (@reserves) {
 #            $template->param( message => 1 );
 #            $noreserves = 1;
 #            $template->param( already_reserved => 1 );
-            $biblioDataHash{$biblionumber}->{already_reserved} = 1;
+            $biblioDataHash{$biblionumber}->{holds_count}++;
         }
     }
 }
@@ -382,6 +407,8 @@ foreach my $biblioNum (@biblionumbers) {
     # Init the bib item with the choices for branch pickup
     my %biblioLoopIter = ( branchloop => $branchloop );
 
+    my $pickupLocations = GetPickupLocation( $biblioNum, $borrowernumber );
+    $biblioLoopIter{pickuploop} = $pickupLocations;
     # Get relevant biblio data.
     my $biblioData = $biblioDataHash{$biblioNum};
     if (! $biblioData) {
@@ -395,7 +422,7 @@ foreach my $biblioNum (@biblionumbers) {
     $biblioLoopIter{author} = $biblioData->{author};
     $biblioLoopIter{rank} = $biblioData->{rank};
     $biblioLoopIter{reservecount} = $biblioData->{reservecount};
-    $biblioLoopIter{already_reserved} = $biblioData->{already_reserved};
+    $biblioLoopIter{holds_count} = $biblioData->{holds_count};
     $biblioLoopIter{mandatorynotes}=0; #FIXME: For future use
 
     if (!$itemLevelTypes && $biblioData->{itemtype}) {
@@ -419,14 +446,36 @@ foreach my $biblioNum (@biblionumbers) {
         if (!$itemInfo->{'notforloan'} && !($itemInfo->{'itemnotforloan'} > 0)) {
             $biblioLoopIter{forloan} = 1;
         }
+
+        if ( !$itemInfo->{'itemnotforloan'} &&
+                !$itemInfo->{'notforloan'} &&
+                !$itemInfo->{'restricted'} &&
+                !$itemInfo->{'damaged'} &&
+                !$itemInfo->{'itemlost'} &&
+                !$itemInfo->{'wthdrawn'} ) {
+            $biblioLoopIter{'forloancount'}++;
+        }
+        if ( $itemInfo->{'notforloan'} || $itemInfo->{'restricted'} ) {
+            $biblioLoopIter{'notforloancount'}++;
+        }
+        if ( $itemInfo->{'restricted'} ) {
+            $biblioLoopIter{'restrictedcount'}++;
+        }
+        if ( $itemInfo->{'onloan'} ) {
+            $biblioLoopIter{'onloancount'}++;
+        }
+
+        $biblioLoopIter{'itemscount'}++;
     }
 
     $biblioLoopIter{itemLoop} = [];
     my $numCopiesAvailable = 0;
+    my $maxholdsperbiblio = 0; #assume all branch has the same amount for max holds.
     foreach my $itemInfo (@{$biblioData->{itemInfos}}) {
         my $itemNum = $itemInfo->{itemnumber};
         my $itemLoopIter = {};
 
+        $itemLoopIter->{backgroundcolor} = 'available';
         $itemLoopIter->{itemnumber} = $itemNum;
         $itemLoopIter->{barcode} = $itemInfo->{barcode};
         $itemLoopIter->{homeBranchName} = $branches->{$itemInfo->{homebranch}}{branchname};
@@ -436,6 +485,11 @@ foreach my $biblioNum (@biblionumbers) {
         if ($itemLevelTypes) {
             $itemLoopIter->{description} = $itemInfo->{description};
             $itemLoopIter->{imageurl} = $itemInfo->{imageurl};
+        }
+
+        if ( $itemInfo->{restricted} ) {
+            $itemLoopIter->{restricted} = $itemInfo->{restricted};
+            $itemLoopIter->{backgroundcolor} = 'restricted';
         }
 
         # If the holdingbranch is different than the homebranch, we show the
@@ -457,9 +511,9 @@ foreach my $biblioNum (@biblionumbers) {
         my ($reservedate,$reservedfor,$expectedAt,undef,$wait) = GetReservesFromItemnumber($itemNum);
         my $ItemBorrowerReserveInfo = GetMemberDetails( $reservedfor, 0);
 
-        # the item could be reserved for this borrower vi a host record, flag this
+        # the item could be reserved for this borrower vi a host record, count this
         if ($reservedfor eq $borrowernumber){
-            $itemLoopIter->{already_reserved} = 1;
+            $biblioLoopIter{holds_count}++;
         }
 
         if ( defined $reservedate ) {
@@ -525,10 +579,20 @@ foreach my $biblioNum (@biblionumbers) {
             $policy_holdallowed = 0;
         }
 
-        if (IsAvailableForItemLevelRequest($itemNum) and $policy_holdallowed and CanItemBeReserved($borrowernumber,$itemNum) eq 'OK' and ($itemLoopIter->{already_reserved} ne 1)) {
+        my $rights = C4::Circulation::GetIssuingRule( $borr->{categorycode}, $itemInfo->{'itype'}, $branch );
+        my $itemmaxholdsperbiblio = $rights->{maxholdsperbiblio} // 0;
+        $itemmaxholdsperbiblio eq '' && ($itemmaxholdsperbiblio = 0);
+        $itemmaxholdsperbiblio > $maxholdsperbiblio && ($maxholdsperbiblio=$itemmaxholdsperbiblio);
+
+        if (IsAvailableForItemLevelRequest($itemNum) and $policy_holdallowed and CanItemBeReserved($borrowernumber,$itemNum) eq 'OK' and ($itemLoopIter->{already_reserved} ne 1) and ($biblioLoopIter{holds_count} < $itemmaxholdsperbiblio) ) {
             $itemLoopIter->{available} = 1;
             $numCopiesAvailable++;
         }
+        #enable checkboxes instead radio buttons on items if necesary
+        $biblioLoopIter{multiholds} = 1 if $itemmaxholdsperbiblio > 1;
+
+        #no items available for loan only hold
+        $biblioLoopIter{reservable} = $biblioLoopIter{forloancount} - $biblioLoopIter{onloancount};
 
         $itemLoopIter->{imageurl} = getitemtypeimagelocation( 'opac', $itemTypes->{ $itemInfo->{itype} }{imageurl} );
 
@@ -557,6 +621,10 @@ foreach my $biblioNum (@biblionumbers) {
     if(not C4::Context->preference('AllowHoldsOnPatronsPossessions') and CheckIfIssuedToPatron($borrowernumber,$biblioNum)) {
         $biblioLoopIter{holdable} = undef;
         $biblioLoopIter{already_patron_possession} = 1;
+    }
+    if ( $biblioLoopIter{holds_count} >= $maxholdsperbiblio ) {
+        $biblioLoopIter{holdable} = undef;
+        $biblioLoopIter{already_reserved} = 1;
     }
 
     if( $biblioLoopIter{holdable} ){ $anyholdable++; }

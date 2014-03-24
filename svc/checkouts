@@ -125,7 +125,7 @@ my $item_level_itypes = C4::Context->preference('item-level_itypes');
 my @checkouts_today;
 my @checkouts_previous;
 while ( my $c = $sth->fetchrow_hashref() ) {
-    my ($charge) = GetIssuingCharges( $c->{itemnumber}, $c->{borrowernumber} );
+    my ($charge) = GetItemCharges( $c->{itemnumber}, $c->{borrowernumber} );
 
     my ( $can_renew, $can_renew_error ) =
       CanBookBeRenewed( $c->{borrowernumber}, $c->{itemnumber} );
@@ -218,3 +218,15 @@ $data->{'sEcho'}                = $input->param('sEcho') || undef;
 $data->{'aaData'}               = \@checkouts;
 
 print to_json($data);
+
+
+#FIXME Fixed in 9481
+sub GetItemCharges {
+    my ( $itemnumber, $borrowernumber ) = @_;
+
+    my $dbh = C4::Context->dbh();
+
+    my $query = "SELECT SUM(amountoutstanding) FROM accountlines WHERE borrowernumber = ? AND itemnumber = ? ";
+    my $charge = $dbh->selectcol_arrayref( $query, {}, ($borrowernumber, $itemnumber) );
+    return @$charge;
+}

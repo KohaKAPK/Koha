@@ -44,11 +44,7 @@
     [% IF ( email ) %]
         <li class="email"> <a href="mailto:[% email %]" title="[% email %]">[% email %]</a></li>
     [% ELSE %]
-        [% IF ( emailpro ) %]
-            <li class="email"> <a href="mailto:[% emailpro %]" title="[% emailpro %]">[% emailpro %]</a></li>
-        [% ELSE %]
-            <li> <span class="empty">No email stored.</span>    </li>
-        [% END %]
+        <li> <span class="empty">No email stored.</span>    </li>
     [% END %]
     [% IF ( ExtendedPatronAttributes ) %][% FOREACH extendedattribute IN extendedattributes %]
         [% IF ( extendedattribute.display_checkout ) %]

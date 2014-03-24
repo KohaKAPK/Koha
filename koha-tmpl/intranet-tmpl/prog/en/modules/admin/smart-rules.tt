@@ -157,6 +157,7 @@ for="tobranch"><strong>Clone these rules to:</strong></label> <input type="hidde
                 <th>Automatic renewal</th>
                 <th>Holds allowed (count)</th>
                 <th>Rental discount (%)</th>
+                <th>Max holds per biblio<th>
                 <th colspan="2">&nbsp;</th>
             </tr>
             </thead>
@@ -219,6 +220,7 @@ for="tobranch"><strong>Clone these rules to:</strong></label> <input type="hidde
                             </td>
 							<td>[% rule.reservesallowed %]</td>
 							<td>[% rule.rentaldiscount %]</td>
+							<td>[% rule.maxholdsperbiblio %]</td>
                             <td><a href="#" class="editrule">Edit</a></td>
 							<td>
 								<a class="button" href="/cgi-bin/koha/admin/smart-rules.pl?op=delete&amp;itemtype=[% rule.itemtype %]&amp;categorycode=[% rule.categorycode %]&amp;branch=[% rule.current_branch %]">Delete</a>
@@ -276,6 +278,7 @@ for="tobranch"><strong>Clone these rules to:</strong></label> <input type="hidde
                     </td>
                     <td><input type="text" name="reservesallowed" id="reservesallowed" size="2" /></td>
                     <td><input type="text" name="rentaldiscount" id="rentaldiscount" size="2" /></td>
+                    <td><input type="text" name="maxholdsperbiblio" id="maxholdsperbiblio" size="2" /></td>
                     <td colspan="2">
                         <input type="hidden" name="branch" value="[% current_branch %]"/>
                         <input type="submit" value="Save" class="submit" />

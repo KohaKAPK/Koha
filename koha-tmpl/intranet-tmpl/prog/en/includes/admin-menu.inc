@@ -28,6 +28,7 @@
 <ul>
 	<li><a href="/cgi-bin/koha/admin/categorie.pl">Patron types and categories</a></li>
     <li><a href="/cgi-bin/koha/admin/smart-rules.pl">Circulation and fines rules</a></li>
+    <li><a href="/cgi-bin/koha/admin/pickup_loc.pl">Pickup location rules</a></li>
 	<li><a href="/cgi-bin/koha/admin/patron-attr-types.pl">Patron attribute types</a></li>
 	<li><a href="/cgi-bin/koha/admin/branch_transfer_limits.pl">Library transfer limits</a></li>
 	<li><a href="/cgi-bin/koha/admin/transport-cost-matrix.pl">Transport cost matrix</a></li>

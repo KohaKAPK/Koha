@@ -61,7 +61,8 @@ $data->{branchcode} = $branchcode;
 ( $data->{renew_okay}, $data->{error} ) =
   CanBookBeRenewed( $borrowernumber, $itemnumber, $override_limit );
 
-if ( $data->{renew_okay} ) {
+if ( $data->{renew_okay} || ($override_limit eq "1") ) {
+    $data->{renew_okay} = 1;
     $date_due = AddRenewal( $borrowernumber, $itemnumber, $branchcode, $date_due );
     $data->{date_due} = output_pref( { dt => $date_due, as_due_date => 1 } );
 }

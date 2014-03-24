@@ -45,6 +45,8 @@
 [% IF CAN_user_parameters_manage_circ_rules %]
     <dt><a href="/cgi-bin/koha/admin/smart-rules.pl">Circulation and fines rules</a></dt>
     <dd>Define circulation and fines rules for combinations of libraries, patron categories, and item types</dd>
+    <dt><a href="/cgi-bin/koha/admin/pickup_loc.pl">Pickup location rules</a></dt>
+    <dd>Define pickup location rules.</dd>
 [% END %]
     <dt><a href="/cgi-bin/koha/admin/patron-attr-types.pl">Patron attribute types</a></dt>
     <dd>Define extended attributes (identifiers and statistical categories) for patron records</dd>

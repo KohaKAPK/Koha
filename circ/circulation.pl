@@ -418,6 +418,7 @@ if ($borrowernumber) {
     $template->param( WaitingReserveLoop => \@WaitingReserveLoop );
     $template->param( adultborrower => 1 )
       if ( $borrower->{'category_type'} eq 'A' );
+    get_waiting_reserves($borrowernumber);
 }
 
 my @values;
@@ -628,3 +629,94 @@ $template->param(
 );
 
 output_html_with_http_headers $query, $cookie, $template->output;
+
+
+
+sub get_waiting_reserves {
+    my $borrowernumber = shift;
+
+    my @borrowerreserv = GetReservesFromBorrowernumber($borrowernumber );
+    my @reservloop;
+    my @WaitingReserveLoop;
+
+    foreach my $num_res (@borrowerreserv) {
+        my %getreserv;
+        my %getWaitingReserveInfo;
+        my $getiteminfo  = GetBiblioFromItemNumber( $num_res->{'itemnumber'} );
+        my $itemtypeinfo = getitemtypeinfo( (C4::Context->preference('item-level_itypes')) ? $getiteminfo->{'itype'} : $getiteminfo->{'itemtype'} );
+        my ( $transfertwhen, $transfertfrom, $transfertto ) =
+            GetTransfers( $num_res->{'itemnumber'} );
+
+        $getreserv{waiting}       = 0;
+        $getreserv{transfered}    = 0;
+        $getreserv{nottransfered} = 0;
+
+        $getreserv{reservedate}    = format_date( $num_res->{'reservedate'} );
+        $getreserv{reserve_id}  = $num_res->{'reserve_id'};
+        $getreserv{title}          = $getiteminfo->{'title'};
+        $getreserv{itemtype}       = $itemtypeinfo->{'description'};
+        $getreserv{author}         = $getiteminfo->{'author'};
+        $getreserv{barcodereserv}  = $getiteminfo->{'barcode'};
+        $getreserv{itemcallnumber} = $getiteminfo->{'itemcallnumber'};
+        $getreserv{biblionumber}   = $getiteminfo->{'biblionumber'};
+        $getreserv{waitingat}      = GetBranchName( $num_res->{'branchcode'} );
+        $getreserv{location}       = $num_res->{'pickup_location'};
+        $getreserv{suspend}        = $num_res->{'suspend'};
+        $getreserv{suspend_until}  = $num_res->{'suspend_until'};
+#         check if we have a waiting status for reservations
+#
+
+    if ( $num_res->{'found'} eq 'W' ) {
+        $getreserv{color}   = 'reserved';
+        $getreserv{waiting} = 1;
+#        genarate information displaying only waiting reserves
+        $getWaitingReserveInfo{title}        = $getiteminfo->{'title'};
+        $getWaitingReserveInfo{biblionumber} = $getiteminfo->{'biblionumber'};
+        $getWaitingReserveInfo{itemtype}     = $itemtypeinfo->{'description'};
+        $getWaitingReserveInfo{author}       = $getiteminfo->{'author'};
+        $getWaitingReserveInfo{reservedate}  = format_date( $num_res->{'reservedate'} );
+        $getWaitingReserveInfo{waitingat}    = GetBranchName( $num_res->{'branchcode'} );
+        $getWaitingReserveInfo{location}     = $num_res->{'pickup_location'};
+        $getWaitingReserveInfo{waitinghere}  = 1 if $num_res->{'branchcode'} eq $branch;
+    }
+#         check transfers with the itemnumber foud in th reservation loop
+    if ($transfertwhen) {
+        $getreserv{color}      = 'transfered';
+        $getreserv{transfered} = 1;
+        $getreserv{datesent}   = format_date($transfertwhen);
+        $getreserv{frombranch} = GetBranchName($transfertfrom);
+    } elsif ($getiteminfo->{'holdingbranch'} ne $num_res->{'branchcode'}) {
+        $getreserv{nottransfered}   = 1;
+        $getreserv{nottransferedby} = GetBranchName( $getiteminfo->{'holdingbranch'} );
+    }
+
+#         if we don't have a reserv on item, we put the biblio infos and the waiting position
+    if ( $getiteminfo->{'title'} eq '' ) {
+        my $getbibinfo = GetBiblioData( $num_res->{'biblionumber'} );
+
+        $getreserv{color}           = 'inwait';
+        $getreserv{title}           = $getbibinfo->{'title'};
+        $getreserv{nottransfered}   = 0;
+        $getreserv{itemtype}        = $itemtypeinfo->{'description'};
+        $getreserv{author}          = $getbibinfo->{'author'};
+        $getreserv{biblionumber}    = $num_res->{'biblionumber'};
+    }
+    $getreserv{waitingposition} = $num_res->{'priority'};
+    push( @reservloop, \%getreserv );
+
+#         if we have a reserve waiting, initiate waitingreserveloop
+    if ($getreserv{waiting} == 1) {
+        push (@WaitingReserveLoop, \%getWaitingReserveInfo)
+    }
+
+}
+
+# return result to the template
+$template->param(
+        countreserv => scalar @reservloop,
+        reservloop  => \@reservloop ,
+        WaitingReserveLoop  => \@WaitingReserveLoop,
+        );
+
+
+}

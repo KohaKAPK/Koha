@@ -722,6 +722,32 @@ sub daysBetween {
     return($count);
 }
 
+=head2 addDateForReserves
+    Same as addDate but ignores spreference useDaysMode, this is need to count
+expiration date for book waiting on shelf to pickup by borrower.
+     my ($day, $month, $year) = $calendar->addDate($date, $offset)
+
+C<$date> is a C4::Dates object representing the starting date of the interval.
+
+C<$offset> Is the number of days that this function has to count from $date.
+
+=cut
+sub addDateForReserves {
+    my ($self, $startdate, $offset) = @_;
+    my ($year,$month,$day) = split("-",$startdate->output('iso'));
+    my $daystep = 1;
+    if ($offset < 0) { # In case $offset is negative
+        $daystep = -1;
+    }
+    while ($offset !=  0) {
+        ($year, $month, $day) = &Date::Calc::Add_Delta_Days($year, $month, $day, $daystep);
+        if (!($self->isHoliday($day, $month, $year))) {
+            $offset = $offset - $daystep;
+        }
+    }
+    return(C4::Dates->new( sprintf(ISO_DATE_FORMAT,$year,$month,$day),'iso'));
+}
+
 1;
 
 __END__

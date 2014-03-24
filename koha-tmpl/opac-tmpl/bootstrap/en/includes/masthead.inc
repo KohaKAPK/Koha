@@ -158,6 +158,11 @@
                                 [% ELSE %]
                                     <option value="ti">Title</option>
                                 [% END # /ms_ti %]
+                            [% IF ( ms_tise ) %]
+                                <option selected="selected" value="czas">Serial title</option>
+                            [% ELSE %]
+                                <option value="czas">Serial title</option>
+                            [% END %]
                                 [% IF ( ms_au ) %]
                                     <option selected="selected" value="au">Author</option>
                                 [% ELSE %]
@@ -257,10 +262,12 @@
                                     [% IF ( Koha.Preference( 'UseCourseReserves' ) == 1 ) %]<li><a href="/cgi-bin/koha/opac-course-reserves.pl">Course reserves</a></li>[% END %]
                                     [% IF Koha.Preference( 'OpacBrowser' ) == 1 %]<li><a href="/cgi-bin/koha/opac-browser.pl">Browse by hierarchy</a></li>[% END %]
                                     [% IF Koha.Preference( 'OpacAuthorities' ) == 1 %]<li><a href="/cgi-bin/koha/opac-authorities-home.pl">Authority search</a></li>[% END %]
+                                    [% IF 1 #na razie na stale %]<li><a href="/cgi-bin/koha/opac-search.pl?idx=callnum&amp;q=CZ NOWOŚCI&amp;sort_by=acqdate_dsc">New books</a></li>[% END %]
                                     [% IF ( ( Koha.Preference( 'opacuserlogin' ) == 1 ) && ( Koha.Preference( 'reviewson' ) == 1 ) && ( Koha.Preference( 'OpacShowRecentComments' ) == 1 ) ) %]<li><a href="/cgi-bin/koha/opac-showreviews.pl">Recent comments</a></li>[% END %]
                                     [% IF Koha.Preference( 'TagsEnabled' ) == 1 %]<li><a href="/cgi-bin/koha/opac-tags.pl">Tag cloud</a></li>[% END %]
                                     [% IF Koha.Preference( 'OpacCloud' ) == 1 %]<li><a href="/cgi-bin/koha/opac-tags_subject.pl">Subject cloud</a></li>[% END %]
                                     [% IF Koha.Preference( 'OpacTopissue' ) == 1 %]<li><a href="/cgi-bin/koha/opac-topissues.pl">Most popular</a></li>[% END %]
+                                                                                <li><a href="/cgi-bin/koha/opac-shelves.pl">Subject list</a></li>
                                     [% IF Koha.Preference( 'suggestion' ) == 1 %]
                                         [% IF Koha.Preference( 'AnonSuggestions' ) == 1 %]
                                             <li><a href="/cgi-bin/koha/opac-suggestions.pl">Purchase suggestions</a></li>

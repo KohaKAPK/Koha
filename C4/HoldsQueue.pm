@@ -34,6 +34,7 @@ use C4::Dates qw/format_date/;
 use List::Util qw(shuffle);
 use List::MoreUtils qw(any);
 use Data::Dumper;
+use File::Pid;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 BEGIN {
@@ -46,6 +47,10 @@ BEGIN {
 
         &TransportCostMatrix
         &UpdateTransportCostMatrix
+
+        &MarkHoldPrinted
+        &GetItemNumberFromTmpHold
+        &GetTmpHoldInfo
      );
 }
 
@@ -116,7 +121,7 @@ Returns hold queue for a holding branch. If branch is omitted, then whole queue 
 =cut
 
 sub GetHoldsQueueItems {
-    my ($branchlimit) = @_;
+    my ($branchlimit, $printstatus) = @_;
     my $dbh   = C4::Context->dbh;
 
     my @bind_params = ();
@@ -129,6 +134,11 @@ sub GetHoldsQueueItems {
     if ($branchlimit) {
         $query .=" WHERE tmp_holdsqueue.holdingbranch = ?";
         push @bind_params, $branchlimit;
+    }
+    if (C4::Context->preference('printSlipFromHoldsQueue')){
+        $query .= $branchlimit ? " AND" : " WHERE";
+        $query .= " tmp_holdsqueue.print_status = ?";
+        push @bind_params, $printstatus;
     }
     $query .= " ORDER BY ccode, location, cn_sort, author, title, pickbranch, reservedate";
     my $sth = $dbh->prepare($query);
@@ -162,7 +172,20 @@ Top level function that turns reserves into tmp_holdsqueue and hold_fill_targets
 =cut
 
 sub CreateQueue {
+    my ($waitforlock) = @_;
+
+    #avoid runnig script when already running
+    my $pidfile = File::Pid->new({
+        file => '/var/lock/build_holdsqueue.pid',
+        });
+    while ( my $num = $pidfile->running ) {
+        $waitforlock || return();
+        sleep(1);
+    }
+    $pidfile->write;
+
     my $dbh   = C4::Context->dbh;
+    $dbh->begin_work;
 
     $dbh->do("DELETE FROM tmp_holdsqueue");  # clear the old table for new info
     $dbh->do("DELETE FROM hold_fill_targets");
@@ -195,7 +218,7 @@ sub CreateQueue {
         $total_requests        += scalar(@$hold_requests);
         $total_available_items += scalar(@$available_items);
 
-        my $item_map = MapItemsToHoldRequests($hold_requests, $available_items, $branches_to_use, $transport_cost_matrix);
+        my $item_map = MapItemsToHoldRequestsByLocation($hold_requests, $available_items, $branches_to_use, $transport_cost_matrix);
         $item_map  or next;
         my $item_map_size = scalar(keys %$item_map)
           or next;
@@ -203,6 +226,7 @@ sub CreateQueue {
         $num_items_mapped += $item_map_size;
         CreatePicklistFromItemMap($item_map);
         AddToHoldTargetMap($item_map);
+        AddItemnumberToReserves($item_map);
         if (($item_map_size < scalar(@$hold_requests  )) and
             ($item_map_size < scalar(@$available_items))) {
             # DOUBLE CHECK, but this is probably OK - unfilled item-level requests
@@ -211,6 +235,8 @@ sub CreateQueue {
             #warn Dumper($hold_requests), Dumper($available_items), Dumper($item_map);
         }
     }
+    $dbh->commit;
+    $pidfile->remove();
 }
 
 =head2 GetBibsWithPendingHoldRequests
@@ -256,6 +282,7 @@ are present in each hashref:
     reservedate
     reservenotes
     borrowerbranch
+    pickup_location
 
 The arrayref is sorted in order of increasing priority.
 
@@ -266,8 +293,8 @@ sub GetPendingHoldRequestsForBib {
 
     my $dbh = C4::Context->dbh;
 
-    my $request_query = "SELECT biblionumber, borrowernumber, itemnumber, priority, reserves.branchcode,
-                                reservedate, reservenotes, borrowers.branchcode AS borrowerbranch
+    my $request_query = "SELECT reserve_id, biblionumber, borrowernumber, itemnumber, priority, reserves.branchcode,
+                                reservedate, reservenotes, borrowers.branchcode AS borrowerbranch, pickup_location, print_status,timestamp
                          FROM reserves
                          JOIN borrowers USING (borrowernumber)
                          WHERE biblionumber = ?
@@ -385,6 +412,7 @@ sub MapItemsToHoldRequests {
             if (exists $items_by_itemnumber{$request->{itemnumber}} and
                 not exists $allocated_items{$request->{itemnumber}}) {
                 $item_map{$request->{itemnumber}} = {
+                    reserve_id => $request->{reserve_id},
                     borrowernumber => $request->{borrowernumber},
                     biblionumber => $request->{biblionumber},
                     holdingbranch =>  $items_by_itemnumber{$request->{itemnumber}}->{holdingbranch},
@@ -392,6 +420,8 @@ sub MapItemsToHoldRequests {
                     item_level => 1,
                     reservedate => $request->{reservedate},
                     reservenotes => $request->{reservenotes},
+                    pickup_location => $request->{pickup_location},
+                    print_status => $request->{print_status},
                 };
                 $allocated_items{$request->{itemnumber}}++;
                 $num_items_remaining--;
@@ -491,6 +521,7 @@ sub MapItemsToHoldRequests {
             delete $items_by_branch{$holdingbranch} unless @$holding_branch_items;
 
             $item_map{$itemnumber} = {
+                reserve_id => $request->{reserve_id},
                 borrowernumber => $request->{borrowernumber},
                 biblionumber => $request->{biblionumber},
                 holdingbranch => $holdingbranch,
@@ -498,6 +529,8 @@ sub MapItemsToHoldRequests {
                 item_level => 0,
                 reservedate => $request->{reservedate},
                 reservenotes => $request->{reservenotes},
+                pickup_location => $request->{pickup_location},
+                print_status => $request->{print_status},
             };
             $num_items_remaining--;
         }
@@ -515,14 +548,15 @@ sub CreatePicklistFromItemMap {
     my $dbh = C4::Context->dbh;
 
     my $sth_load=$dbh->prepare("
-        INSERT INTO tmp_holdsqueue (biblionumber,itemnumber,barcode,surname,firstname,phone,borrowernumber,
+        INSERT INTO tmp_holdsqueue (reserve_id,biblionumber,itemnumber,barcode,surname,firstname,phone,borrowernumber,
                                     cardnumber,reservedate,title, itemcallnumber,
-                                    holdingbranch,pickbranch,notes, item_level_request)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                    holdingbranch,pickbranch,notes, item_level_request,print_status, pickup_location, date_time)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ");
 
     foreach my $itemnumber  (sort keys %$item_map) {
         my $mapped_item = $item_map->{$itemnumber};
+        my $reserve_id = $mapped_item->{reserve_id};
         my $biblionumber = $mapped_item->{biblionumber};
         my $borrowernumber = $mapped_item->{borrowernumber};
         my $pickbranch = $mapped_item->{pickup_branch};
@@ -530,6 +564,9 @@ sub CreatePicklistFromItemMap {
         my $reservedate = $mapped_item->{reservedate};
         my $reservenotes = $mapped_item->{reservenotes};
         my $item_level = $mapped_item->{item_level};
+        my $pickup_location = $mapped_item->{pickup_location};
+        my $print_status = $mapped_item->{print_status};
+        my $date_time = $mapped_item->{date_time};
 
         my $item = GetItem($itemnumber);
         my $barcode = $item->{barcode};
@@ -544,9 +581,9 @@ sub CreatePicklistFromItemMap {
         my $bib = GetBiblioData($biblionumber);
         my $title = $bib->{title};
 
-        $sth_load->execute($biblionumber, $itemnumber, $barcode, $surname, $firstname, $phone, $borrowernumber,
+        $sth_load->execute($reserve_id,$biblionumber, $itemnumber, $barcode, $surname, $firstname, $phone, $borrowernumber,
                            $cardnumber, $reservedate, $title, $itemcallnumber,
-                           $holdingbranch, $pickbranch, $reservenotes, $item_level);
+                           $holdingbranch, $pickbranch, $reservenotes, $item_level,$print_status, $pickup_location, $date_time);
     }
 }
 
@@ -635,6 +672,221 @@ sub least_cost_branch {
     # XXX return a random @branch with minimum cost instead of the first one;
     # return $branch[0] if @branch == 1;
 }
+=head2 MarkHoldPrinted
+    MarkHoldPrinted($reserve_id)
+    Change print status as printed.
+=cut
 
+sub MarkHoldPrinted {
+   my ( $reserve_id ) = @_;
+   my $dbh = C4::Context->dbh;
+   my $strsth="UPDATE reserves INNER JOIN tmp_holdsqueue USING (reserve_id)
+                SET reserves.print_status = 1 , tmp_holdsqueue.print_status = 1
+                WHERE reserve_id = ?
+		";
+    my $sth = $dbh->prepare($strsth);
+	$sth->execute($reserve_id);
+
+    return 1;
+}
+
+=head2 MapItemsToHoldRequestsByLocation
+
+  MapItemsToHoldRequestsByLocation($hold_requests, $available_items, $branches, $transport_cost_matrix)
+
+=cut
+
+sub MapItemsToHoldRequestsByLocation {
+    my ($hold_requests, $available_items, $branches_to_use, $transport_cost_matrix) = @_;
+
+    # handle trival cases
+    return unless scalar(@$hold_requests) > 0;
+    return unless scalar(@$available_items) > 0;
+
+    # identify item-level requests
+    my %specific_items_requested = map { $_->{itemnumber} => 1 }
+                                   grep { defined($_->{itemnumber}) }
+                                   @$hold_requests;
+
+    # group available items by itemnumber
+    my %items_by_itemnumber = map { $_->{itemnumber} => $_ } @$available_items;
+
+    my $items_by_location = GetAvailableItemsByLocation([keys %items_by_itemnumber]);
+
+    # items already allocated
+    my %allocated_items = ();
+
+    # map of items to hold requests
+    my %item_map = ();
+
+    # figure out which item-level requests can be filled
+    my $num_items_remaining = scalar(@$available_items);
+    foreach my $request (@$hold_requests) {
+        last if $num_items_remaining == 0;
+
+        # is this an item-level request?
+        if (defined($request->{itemnumber})) {
+            # fill it if possible; if not skip it
+            if (exists $items_by_itemnumber{$request->{itemnumber}} and
+                not exists $allocated_items{$request->{itemnumber}}) {
+                $item_map{$request->{itemnumber}} = {
+                    reserve_id => $request->{reserve_id},
+                    borrowernumber => $request->{borrowernumber},
+                    biblionumber => $request->{biblionumber},
+                    holdingbranch =>  $items_by_itemnumber{$request->{itemnumber}}->{holdingbranch},
+                    pickup_branch => $request->{branchcode} || $request->{borrowerbranch},
+                    item_level => 1,
+                    reservedate => $request->{reservedate},
+                    reservenotes => $request->{reservenotes},
+                    pickup_location => $request->{pickup_location},
+                    print_status => $request->{print_status},
+                    date_time => $request->{timestamp},
+                };
+                $allocated_items{$request->{itemnumber}}++;
+                $num_items_remaining--;
+            }
+        } else {
+            # it's title-level request that will take up one item
+            ## $num_items_remaining--;
+        }
+    }
+    # group available items by itemnumber
+    my %items_by_branch = ();
+    foreach my $item (@$available_items) {
+        next unless $item->{holdallowed};
+
+        foreach my $loc ( keys %{$items_by_location} ) {
+            if ((not exists $allocated_items{ $item->{itemnumber}}) &&
+                (grep { $_->{itemnumber} == $item->{itemnumber} } @{$items_by_location->{$loc}})) {
+                push @{$items_by_branch{$item->{holdingbranch}}{$loc}}, $item;
+            }
+        }
+    }
+    return \%item_map unless keys %items_by_branch;
+
+    # now handle the title-level requests
+    $num_items_remaining = scalar(@$available_items) - scalar(keys %allocated_items);
+    my %num_items_remaining_by_loc;
+    foreach my $branch ( keys %items_by_branch ) {
+        my $items = $items_by_branch{$branch};
+        foreach (keys %$items){
+           $num_items_remaining_by_loc{$branch}{$_} = scalar @{$items_by_branch{$branch}{$_}};
+        }
+    }
+    my $pull_branches;
+    foreach my $request (@$hold_requests) {
+        last if $num_items_remaining == 0;
+        next if defined($request->{itemnumber}); # already handled these
+
+        #select available pickup location
+        my $pickup_location = $request->{'pickup_location'};
+        #pickup branch
+        my $pickup_branch = $request->{branchcode};
+
+        my @avail_location;
+        if ( defined $num_items_remaining_by_loc{$pickup_branch}{$pickup_location} &&
+                $num_items_remaining_by_loc{$pickup_branch}{$pickup_location} > 0 ) {
+            @avail_location = ( $pickup_location );
+        } else {
+            @avail_location = grep { /${pickup_location}/ } keys $num_items_remaining_by_loc{$pickup_branch};
+        }
+        #next when no items with this location available
+        next if scalar @avail_location < 1;
+
+        # look for local match first
+        my ($itemnumber, $holdingbranch);
+
+        #get first location which have avail items
+        #and get that item
+        my $selected_loc;
+        foreach my $loc (@avail_location) {
+            if ( $num_items_remaining_by_loc{$pickup_branch}{$loc} > 0 ) {
+                $selected_loc = $loc;
+                foreach my $item ( @{$items_by_branch{$pickup_branch}{$loc}} ) {
+                    unless ( exists $allocated_items{$item->{'itemnumber'}} ) {
+                        $itemnumber = $item->{'itemnumber'};
+                        $allocated_items{$itemnumber}++;
+                        $holdingbranch = $item->{holdingbranch};
+                        last;
+                    }
+                }
+                last;
+            }
+        }
+        if ($itemnumber) {
+            my $holding_branch_items = $items_by_branch{$pickup_branch}{$selected_loc}
+              or die "Have $itemnumber, $holdingbranch, but no items!";
+            @$holding_branch_items = grep { $_->{itemnumber} != $itemnumber } @$holding_branch_items;
+            delete $items_by_branch{$pickup_branch}{$selected_loc} unless @$holding_branch_items;
+
+            $item_map{$itemnumber} = {
+                reserve_id => $request->{reserve_id},
+                borrowernumber => $request->{borrowernumber},
+                biblionumber => $request->{biblionumber},
+                holdingbranch => $holdingbranch,
+                pickup_branch => $pickup_branch,
+                item_level => 0,
+                reservedate => $request->{reservedate},
+                reservenotes => $request->{reservenotes},
+                pickup_location => $request->{pickup_location},
+                print_status => $request->{print_status},
+                date_time => $request->{timestamp},
+            };
+            $num_items_remaining--;
+            $num_items_remaining_by_loc{$pickup_branch}{$selected_loc}--;
+        }
+    }
+    return \%item_map;
+}
+
+=head2 GetItemNumberFromTmpHold
+    $itemnumber = GetItemNumberFromTmpHold($reserve_id)
+    Returns itemnumber associated with hold.
+    Item number is taken from tmp_holdsqueue table, which is
+    populated by bulid_holds_queue.pl script.
+
+=cut
+sub	GetItemNumberFromTmpHold{
+	my ( $reserve_id ) = @_;
+	my $dbh = C4::Context->dbh;
+	my $strsth="SELECT itemnumber
+                  FROM tmp_holdsqueue
+                WHERE reserve_id = ?
+		";
+	my $sth = $dbh->prepare($strsth);
+	$sth->execute($reserve_id);
+
+	my $data = $sth->fetchrow;
+	return $data;
+}
+
+sub GetTmpHoldInfo {
+    my ( $reserve_id ) = @_;
+    my $dbh = C4::Context->dbh;
+    my $strsth = "SELECT * FROM tmp_holdsqueue
+                    WHERE reserve_id = ?
+                ";
+    my $sth = $dbh->prepare($strsth);
+	$sth->execute($reserve_id);
+    my $data = $sth->fetchrow_hashref;
+    return $data;
+}
+=head2 AddItemnumberToReserves
+
+=cut
+
+sub AddItemnumberToReserves {
+    my $item_map = shift;
+    my $dbh = C4::Context->dbh;
+
+    my $sth_load=$dbh->prepare("UPDATE reserves SET itemnumber=? WHERE reserve_id=?");
+
+    foreach my $itemnumber (sort keys %$item_map) {
+        my $mapped_item = $item_map->{$itemnumber};
+        my $reserve_id = $mapped_item->{reserve_id};
+
+        $sth_load->execute($itemnumber, $reserve_id);
+    }
+}
 
 1;

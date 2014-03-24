@@ -1,0 +1,100 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Administration &rsaquo; Pickup location rules</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<script type="text/javascript" src="[% themelang %]/lib/jquery/plugins/jquery.checkboxes.min.js"></script>
+<link rel="stylesheet" type="text/css" href="[% themelang %]/css/datatables.css" />
+[% INCLUDE 'datatables.inc' %]
+[% USE AuthorisedValues %]
+<script type="text/javascript">
+//<![CDATA[
+
+	$(document).ready(function(){
+        $('#pickup_tabs').tabs();
+        $('.sorted').dataTable($.extend(true, {}, dataTablesDefaults, {
+            "aoColumnDefs": [
+                { "aTargets": [ -1 ], "bSortable": false, "bSearchable": false },
+            ],
+            "sPaginationType": "four_button"
+        }));
+});
+//]]>
+</script>
+</head>
+<body id="admin-pickup_location" class="admin">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/admin/admin-home.pl">Administration</a> &rsaquo; Pickup location rules</div>
+
+<div id="doc3" class="yui-t1">
+
+<div id="bd">
+    <div id="yui-main">
+    <div class="yui-b">
+    <h1>Pickup location rules. Itd. itp. </h1>
+
+    <div id="pickup_tabs" class="toptabs">
+    <ul class="ui-tabs-nav">
+        [% FOREACH typeloo IN rule_types %]<li><a href="#[% typeloo.type %]set">[% typeloo.name %]</a></li>[% END %]
+	</ul>
+        [% FOREACH typeloo IN rule_types %]
+
+	<div id="[% typeloo.type %]set">
+		<h4>Rules for [% typeloo.name %]: [% typeloo.name %]</h4>
+		<table id="[% typeloo.type %]table" class="sorted">
+			<thead>
+                <tr>
+				    <th>Allow to</th>
+				    <th>Pickup place</th>
+                    <th>Action</th>
+				</tr>
+			</thead>
+
+			<tbody>
+                [% FOREACH ruleloo IN defined_rules %]
+                [% IF ruleloo.rule_type == typeloo.type %]
+                    <tr>
+                        <td>[% ruleloo.allow_to %]</td>
+                        <td>[% AuthorisedValues.GetByCode( 'PICKUP', ruleloo.pickup_loc ) %]</td>
+                        <td>
+                            <form method="post" action="/cgi-bin/koha/admin/pickup_loc.pl#[% typeloo.type %]set" id="del[% ruleloo.pickuprule_id %]">
+                            <input type="hidden" name="pickuprule_id" value="[% ruleloo.pickuprule_id %]"/>
+                            <input type="hidden" name="action" value="del"/>
+                            <input type="submit" value="Delete rule"/>
+                            </form>
+                        </td>
+                    </tr>
+                [% END %]
+                [% END %]
+            </tbody>
+        </table>
+        </form>
+        <form method="post" action="/cgi-bin/koha/admin/pickup_loc.pl#[% typeloo.type %]set" id="[% typeloo.type %]form">
+            <label for="select type">Select type:</label>
+            <select name="value" id="select[% typeloo.type %]">
+            [% FOREACH values IN typeloo.values %]
+            <option value="[% values.categorycode || values.itemtype || values.branchcode || values.authorised_value  %]">[% values.description || values.branchname || values.lib %]</option>
+            [% END %]
+            <select>
+            <label for="location_[% typeloo.type %]">Select location:</label>
+            <select name="location" id="pickup_loc[% typeloo.type %]">
+            [% FOREACH locations IN pickup_locations %]
+            <option value="[% locations.authorised_value  %]">[% locations.lib %]</option>
+            [% END %]
+            </select>
+            <input type="hidden" name="type" value="[% typeloo.type %]" />
+            <input type="hidden" name="action" value="add" />
+            <input type="submit" value="Add rule"/>
+        </form>
+        </div>
+
+        [% END %]
+    </div>
+</div>
+
+</div>
+<div class="yui-b">
+[% INCLUDE 'admin-menu.inc' %]
+</div>
+</div>
+[% INCLUDE 'intranet-bottom.inc' %]

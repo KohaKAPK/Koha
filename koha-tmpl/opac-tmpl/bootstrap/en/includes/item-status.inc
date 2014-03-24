@@ -30,7 +30,7 @@ not use an API to fetch items that populates item.datedue.
         [% ELSE %]
             <span class="item-status checkedout">Currently in local use</span>
         [% END %]
-    [% ELSE %]
+    [% ELSIF ( item.datedue || issue.date_due ) && !( item.itemnotforloan ) && !( item.restrictedopac ) %]
         [% IF ( OPACShowCheckoutName ) %]
             <span class="item-status checkedout">Checked out to [% item.firstname %] [% item.surname %] [% IF ( item.cardnumber ) %]([% item.cardnumber %])[% END %]</span>
         [% ELSE %]
@@ -55,7 +55,7 @@ not use an API to fetch items that populates item.datedue.
     <span class="item-status withdrawn">Item withdrawn</span>
 [% END %]
 
-[% IF ( item.itemnotforloan ) %]
+[% IF ( item.itemnotforloan ) && !( item.datedue || issue.date_due ) %]
     [% SET itemavailable = 0 %]
     [% IF ( item.notforloanvalueopac ) %]
         <span class="item-status notforloan">[% item.notforloanvalueopac %] [% IF ( item.restrictedopac ) %]<span class="restricted">([% item.restrictedopac %])</span>[% END %]</span>
@@ -80,6 +80,11 @@ not use an API to fetch items that populates item.datedue.
 [% IF item.on_order %]
     [% SET itemavailable = 0 %]
     <span class="item-status onorder">On order</span>
+[% END %]
+
+[% IF ( item.datedue || issue.date_due ) && (( item.itemnotforloan ) || (item.restrictedopac)) %]
+    [% SET itemavailable = 0 %]
+    <span class="item-status tmpunavilable">Temporarily unavailable</span>
 [% END %]
 
 [% IF ( itemavailable ) %]

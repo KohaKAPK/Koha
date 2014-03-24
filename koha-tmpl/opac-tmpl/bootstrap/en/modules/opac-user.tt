@@ -1,5 +1,6 @@
 [% USE Koha %]
 [% USE KohaDates %]
+[% USE AuthorisedValues %]
 
 [% INCLUDE 'doc-head-open.inc' %]
 [% IF ( LibraryNameTitle ) %][% LibraryNameTitle %][% ELSE %]Koha online[% END %] catalog &rsaquo; Your library home
@@ -92,7 +93,12 @@
                                     <li id="lost"><strong>Please note: </strong> Your library card has been marked as lost or stolen. If this is an error, please contact the library.</li>
                                 [% END %]
                                 [% IF ( renewal_blocked_fines ) && ( OpacRenewalAllowed ) %]
+                                    [% IF ( OPACFinesTab ) %]
                                     <li id="renewal_blocked_fines"><strong>Please note: </strong> Since you have <a href="/cgi-bin/koha/opac-account.pl">[% IF renewal_blocked_fines != "0.00" %] more than <span id="renewal_blocked_fines_amount">[% renewal_blocked_fines %]</span> in [% END %] fines</a>, you cannot renew your books online. Please pay your fines if you wish to renew your books.</li>
+                                    [% ELSE %]
+                                    <li id="renewal_blocked_fines"><strong>Please note: </strong> Since you have [% IF renewal_blocked_fines != "0.00" %] more than <span id="renewal_blocked_fines_amount">[% renewal_blocked_fines %]</span> in [% END %] fines, you cannot renew your books online. Please pay your fines if you wish to renew your books.</li>
+                                    [% END %]
+
                                 [% END %]
                             </ul>
                         </div>
@@ -542,12 +548,11 @@
                                                     </span>
                                                 [% ELSE %]
                                                     <span class="tdlabel">Expiration:</span>
-                                                    Never expires
                                                 [% END %]
                                             </td>
                                             <td class="branch">
                                                 <span class="tdlabel">Pick up location:</span>
-                                                [% RESERVE.branch %]
+                                               [% RESERVE.branch %] [% IF RESERVE.pickup_location %] ( [% AuthorisedValues.GetByCode( 'PICKUP', RESERVE.pickup_location, 'IS_OPAC' ) %]  ) [% END %]
                                             </td>
                                             [% IF ( showpriority ) %]
                                                  <td class="priority">
@@ -574,6 +579,8 @@
                                                         [% RESERVE.datesent | $KohaDates %]
                                                     [% ELSIF ( RESERVE.suspend ) %]
                                                         Suspended [% IF ( RESERVE.suspend_until ) %] until [% RESERVE.suspend_until %] [% END %]
+                                                    [% ELSIF ( RESERVE.print_status ) %]
+                                                        Processing
                                                     [% ELSE %]
                                                         Pending
                                                     [% END %]

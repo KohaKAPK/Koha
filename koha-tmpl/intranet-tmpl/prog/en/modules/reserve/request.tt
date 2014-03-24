@@ -1,4 +1,6 @@
 [% USE KohaDates %]
+[% USE AuthorisedValues %]
+[% USE Branches %]
 [% INCLUDE 'doc-head-open.inc' %]
 [% UNLESS ( multi_hold ) %]
     <title>Koha &rsaquo; Circulation &rsaquo; Holds &rsaquo; Place a hold on [% title |html %]</title>
@@ -339,13 +341,14 @@ function checkMultiHold() {
         <li>
             <label for="pickup">Pickup at:</label>
             <select name="pickup" size="1" id="pickup">
-            [%- FOREACH branchloo IN branchloop %]
-              [% IF ( branchloo.selected ) -%]
-                <option value="[% branchloo.branchcode %]" selected="selected">[% branchloo.branchname %]</option>
-              [%- ELSE -%]
-                <option value="[% branchloo.branchcode %]">[% branchloo.branchname %]</option>
-              [%- END -%]
-            [%- END %]
+            [% FOREACH biblioloo IN biblioloop %]
+            [% FOREACH pickuploo IN biblioloo.pickuploop %]
+                <option value="[% pickuploo.branch %]|[% pickuploo.pickup %]">
+                [% Branches.GetName( pickuploo.branch ) %] (
+                [% AuthorisedValues.GetByCode( 'PICKUP', pickuploo.pickup, 'IS_OPAC' ) %] )
+                </option>
+            [% END %]
+            [% END %]
             </select>
         </li>
 
@@ -679,7 +682,7 @@ function checkMultiHold() {
     [% IF ( reserveloo.wait ) %]
     	[% IF ( reserveloo.atdestination ) %]
             [% IF ( reserveloo.found ) %]
-                Item waiting at <b> [% reserveloo.wbrname %]</b> <input type="hidden" name="pickup" value="[% reserveloo.wbrcode %]" />
+                Item waiting at <b> [% reserveloo.wbrname %] ( [% AuthorisedValues.GetByCode( 'PICKUP', reserveloo.pickup_location, 'IS_OPAC' ) %] ) </b> <input type="hidden" name="pickup" value="[% reserveloo.wbrcode %]" />
             [% ELSE %]
                 Waiting to be pulled <input type="hidden" name="pickup" value="[% reserveloo.wbrcode %]" />
             [% END %]
@@ -688,16 +691,21 @@ function checkMultiHold() {
          [% END %]
     [% ELSE %]
           <select name="pickup">
-      [% FOREACH branchloo IN reserveloo.branchloop %]
-        [% IF ( branchloo.selected ) %]
-            <option value="[% branchloo.branchcode %]" selected="selected">
+      [% FOREACH pickuploo IN reserveloo.pickuploop %]
+        [% IF (pickuploo.branch == reserveloo.wbrcode) && (pickuploo.pickup == reserveloo.pickup_location) %]
+            <option value="[% pickuploo.branch %]|[% pickuploo.pickup %]" selected="selected">
+              [% Branches.GetName( pickuploo.branch ) %] (
+              [% AuthorisedValues.GetByCode( 'PICKUP', pickuploo.pickup, 'IS_OPAC' ) %] )
+            </option>
         [% ELSE %]
-            <option value="[% branchloo.branchcode %]">
-        [% END %]
-              [% branchloo.branchname %]
+            <option value="[% pickuploo.branch %]|[% pickuploo.pickup %]" >
+              [% Branches.GetName( pickuploo.branch ) %] (
+              [% AuthorisedValues.GetByCode( 'PICKUP', pickuploo.pickup, 'IS_OPAC' ) %] )
             </option>
       [% END %]
+      [% END %]
           </select>
+
     [% END %]
         </td>
         <td>
@@ -712,6 +720,9 @@ function checkMultiHold() {
           </a>
     [% ELSE %]
       [% IF ( reserveloo.constrainttypea ) %]
+            [% IF ( reserveloo.print_status ) %]
+            <i>Processing </i><br/>
+            [% END %]
             [% IF ( reserveloo.item_level_hold ) %]
                 <i>Only item
                 <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% reserveloo.biblionumber %]">

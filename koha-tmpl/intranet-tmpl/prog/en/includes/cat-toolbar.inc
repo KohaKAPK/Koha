@@ -229,7 +229,7 @@ CAN_user_serials_create_subscription ) %]
     </ul>
     </div>
 
-[% IF ( virtualshelves && intranetbookbag ) %]
+[% IF ( 1 ) # virtualshelves && intranetbookbag ) %]
     <div class="btn-group">
     <button class="btn btn-small dropdown-toggle" data-toggle="dropdown">Add to <span class="caret"></span></button>
     <ul class="dropdown-menu">

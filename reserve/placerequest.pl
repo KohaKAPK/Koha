@@ -55,6 +55,11 @@ my $borrower=GetMember('borrowernumber'=>$borrowernumber);
 my $checkitem=$input->param('checkitem');
 my $expirationdate = $input->param('expiration_date');
 
+my $pickup_loc;
+if ( $branch =~ /\|/ ) {
+    ( $branch, $pickup_loc ) =  split /\|/, $branch;
+}
+
 my $multi_hold = $input->param('multi_hold');
 my $biblionumbers = $multi_hold ? $input->param('biblionumbers') : ($biblionumber . '/');
 my $bad_bibs = $input->param('bad_bibs');
@@ -110,17 +115,17 @@ if ($type eq 'str8' && $borrower){
         if ($multi_hold) {
             my $bibinfo = $bibinfos{$biblionumber};
             AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'a',[$biblionumber],
-                       $bibinfo->{rank},$startdate,$expirationdate,$notes,$bibinfo->{title},$checkitem,$found);
+                       $bibinfo->{rank},$startdate,$expirationdate,$notes,$bibinfo->{title},$checkitem,$found,$pickup_loc);
         } else {
             if ($input->param('request') eq 'any'){
                 # place a request on 1st available
-                AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'a',\@realbi,$rank[0],$startdate,$expirationdate,$notes,$title,$checkitem,$found);
+                AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'a',\@realbi,$rank[0],$startdate,$expirationdate,$notes,$title,$checkitem,$found,$pickup_loc);
             } elsif ($reqbib[0] ne ''){
                 # FIXME : elsif probably never reached, (see top of the script)
                 # place a request on a given item
-                AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'o',\@reqbib,$rank[0],$startdate,$expirationdate,$notes,$title,$checkitem, $found);
+                AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'o',\@reqbib,$rank[0],$startdate,$expirationdate,$notes,$title,$checkitem, $found,$pickup_loc);
             } else {
-                AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'a',\@realbi,$rank[0],$startdate,$expirationdate,$notes,$title,$checkitem, $found);
+                AddReserve($branch,$borrower->{'borrowernumber'},$biblionumber,'a',\@realbi,$rank[0],$startdate,$expirationdate,$notes,$title,$checkitem, $found,$pickup_loc);
             }
         }
     }

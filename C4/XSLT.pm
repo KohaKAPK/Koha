@@ -260,7 +260,7 @@ sub buildKohaItemsNamespace {
         my $reservestatus = C4::Reserves::GetReserveStatus( $item->{itemnumber} );
 
         if ( $itemtypes->{ $item->{itype} }->{notforloan} || $item->{notforloan} || $item->{onloan} || $item->{withdrawn} || $item->{itemlost} || $item->{damaged} ||
-             (defined $transfertwhen && $transfertwhen ne '') || $item->{itemnotforloan} || (defined $reservestatus && $reservestatus eq "Waiting") ){ 
+             (defined $transfertwhen && $transfertwhen ne '') || $item->{itemnotforloan} || $item->{restricted} || (defined $reservestatus && $reservestatus eq "Waiting") ){
             if ( $item->{notforloan} < 0) {
                 $status = "On order";
             } 
@@ -278,6 +278,9 @@ sub buildKohaItemsNamespace {
             }
             if ($item->{damaged}) {
                 $status = "Damaged"; 
+            }
+            if ($item->{restricted}) {
+                $status = "Restricted";
             }
             if (defined $transfertwhen && $transfertwhen ne '') {
                 $status = 'In transit';
