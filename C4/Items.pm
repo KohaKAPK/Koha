@@ -2164,7 +2164,8 @@ sub _koha_new_item {
             enumchron           = ?,
             more_subfields_xml  = ?,
             copynumber          = ?,
-            stocknumber         = ?
+            stocknumber         = ?,
+            accq_type           = ?
           ";
     my $sth = $dbh->prepare($query);
     my $today = C4::Dates->today('iso');
@@ -2207,6 +2208,7 @@ sub _koha_new_item {
             $item->{'more_subfields_xml'},
             $item->{'copynumber'},
             $item->{'stocknumber'},
+            $item->{'accq_type'},
     );
 
     my $itemnumber;
@@ -2249,6 +2251,11 @@ sub MoveItemFromBiblio {
 		    $order->{'biblionumber'} = $tobiblio;
 	        C4::Acquisition::ModOrder($order);
 	    }
+        require C4::Inventory;
+
+        my ( $result, $error ) = C4::Inventory::RefreshItemInInventory( { itemnumber=> $itemnumber } );
+        warn "error: $error" unless defined $result;
+
         return $tobiblio;
 	}
     return;

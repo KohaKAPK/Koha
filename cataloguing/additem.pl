@@ -37,6 +37,7 @@ use C4::Search;
 use Storable qw(thaw freeze);
 use URI::Escape;
 use C4::Members;
+use C4::Inventory;
 
 use MARC::File::XML;
 use URI::Escape;
@@ -465,6 +466,28 @@ if ($op eq "additem") {
                 $cookie = [ $cookie, $itemcookie ];
             }
 
+            #Add item to inventory
+            if ( $input->param('addto_inv') ) {
+
+                my $accession_id;
+                if ( $input->param('mod_acc') ) {
+                    my $accession_number = $record->subfield('952',"f");
+                    my $accession = SearchInvBookAccessions({ accession_number => $accession_number }) if defined $accession_number;
+                    $accession_id = $accession->[0]->{accession_id};
+                }
+                my ( $success, $ivb_error ) = AddItemToInventory({
+                        itemnumber => $oldbibitemnum,
+                        invbook_id => $input->param('inv_book'),
+                        accession_id => $accession_id,
+                        });
+                push @errors, $ivb_error  if !$success;
+                DelItem({
+                        itemnumber   => $oldbibitemnum,
+                        biblionumber => $oldbiblionumber,
+                        }) if !$success;
+                #TODO: if not success delete new item?
+            }
+
         }
         $nextop = "additem";
         if ($exist_itemnumber) {
@@ -632,10 +655,40 @@ if ($op eq "additem") {
     # check that the barcode don't exist already
     my $addedolditem = TransformMarcToKoha($dbh,$itemtosave);
     my $exist_itemnumber = get_item_from_barcode($addedolditem->{'barcode'});
+    my $olditem_data = GetItem($itemnumber);
     if ($exist_itemnumber && $exist_itemnumber != $itemnumber) {
         push @errors,"barcode_not_unique";
     } else {
         ModItemFromMarc($itemtosave,$biblionumber,$itemnumber);
+
+        my $accession_id;
+        if ( $input->param('mod_acc') ) {
+            my $accession_number = $itemtosave->subfield('952',"f");
+            my $accession = SearchInvBookAccessions({ accession_number => $accession_number }) if defined $accession_number;
+            $accession_id = $accession->[0]->{accession_id};
+        }
+
+        #Add item to inventory
+        if ( $input->param('addto_inv') ) {
+            my $inventory_item = ({
+                    itemnumber => $itemnumber,
+                    invbook_id => $input->param('inv_book'),
+            });
+            $inventory_item->{accession_id} = $accession_id if defined $accession_id;
+            my ( $success, $ivb_error ) =
+                AddItemToInventory($inventory_item);
+            if ( !$success ){
+                push @errors, $ivb_error;
+                ModItem({ stocknumber => $olditem_data->{stocknumber} }, $biblionumber, $itemnumber);
+            }
+        } elsif ( $input->param('mod_acc') && defined $accession_id ){
+            my $result = SearchInvBookItems( { itemnumber => $itemnumber } );
+            ($result && ref($result) eq 'ARRAY' && @$result == 1) || push @errors, 'ITEM_NOT_FOUND';
+            ModInvBookItem({
+                    invbook_item_id => $result->[0]->{invbook_item_id},
+                    accession_id => $accession_id,
+            });
+        }
         $itemnumber="";
     }
   my $item = GetItem( $itemnumber );
@@ -673,7 +726,6 @@ if ($op eq "additem") {
 my $temp = GetMarcBiblio( $biblionumber );
 #my @fields = $record->fields();
 
-
 my %witness; #---- stores the list of subfields used at least once, with the "meaning" of the code
 my @big_array;
 #---- finds where items.itemnumber is stored
@@ -682,6 +734,7 @@ my ($branchtagfield, $branchtagsubfield) = &GetMarcFromKohaField("items.homebran
 C4::Biblio::EmbedItemsInMarcBiblio($temp, $biblionumber);
 my @fields = $temp->fields();
 
+$temp->{accession_id} = $input->param('accession_id') if defined $input->param('accession_id');
 
 my @hostitemnumbers;
 if ( C4::Context->preference('EasyAnalyticalRecords') ) {

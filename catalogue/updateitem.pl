@@ -27,6 +27,7 @@ use C4::Items;
 use C4::Output;
 use C4::Circulation;
 use C4::Reserves;
+use C4::Inventory qw(GetInvBookItemInfoByItemNr AddItemToInventory_BPK_Book);
 
 my $cgi= new CGI;
 
@@ -39,6 +40,22 @@ my $itemlost=$cgi->param('itemlost');
 my $itemnotes=$cgi->param('itemnotes');
 my $withdrawn=$cgi->param('withdrawn');
 my $damaged=$cgi->param('damaged');
+
+{
+    ## FIXME: would be probably better to have separate script for that action
+    last unless (C4::Context->preference("InventoryBookEnable")
+      && C4::Context->preference("InventoryBookVariant")
+      && C4::Context->preference("InventoryBookVariant") eq 'BPK');
+
+    my $invbook_action_add = $cgi->param('invbook_action_add');
+    ($invbook_action_add && $itemnumber) || last;
+
+    my ($result, $ecode) = AddItemToInventory_BPK_Book( { itemnumber => $itemnumber } );
+    ## FIXME: proper error handling etc.
+
+    print $cgi->redirect("moredetail.pl?biblionumber=$biblionumber&itemnumber=$itemnumber#item$itemnumber");
+    exit;
+}
 
 my $confirm=$cgi->param('confirm');
 my $dbh = C4::Context->dbh;

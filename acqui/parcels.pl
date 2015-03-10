@@ -75,6 +75,7 @@ use C4::Output;
 use C4::Dates qw/format_date/;
 use C4::Acquisition;
 use C4::Budgets;
+use C4::Inventory qw/ GetInvBookAccession ModInvBookAccession /;
 
 use Koha::Acquisition::Bookseller;
 
@@ -98,6 +99,15 @@ our ( $template, $loggedinuser, $cookie, $flags ) = get_template_and_user(
         debug           => 1,
     }
 );
+my $accession_id = $input->param('accession_id');
+if ( defined $accession_id && $accession_id) {
+    my $detail = GetInvBookAccession($accession_id);
+    $booksellerid = $detail->{vendor_id};
+    $template->param(
+            accession_name => $detail->{accession_number},
+            accession_id => $accession_id,
+            );
+}
 
 my $invoicenumber = $input->param('invoice');
 my $shipmentdate = $input->param('shipmentdate');
@@ -134,6 +144,12 @@ if ($op and $op eq 'confirm') {
     );
     if(defined $invoiceid) {
         # Successful 'Add'
+        if (defined $accession_id && $accession_id) {
+        ModInvBookAccession({
+               accession_id => $accession_id,
+               invoice_id => $invoiceid,
+               });
+        }
         print $input->redirect("/cgi-bin/koha/acqui/parcel.pl?invoiceid=$invoiceid");
         exit 0;
     } else {

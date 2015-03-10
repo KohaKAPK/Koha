@@ -37,6 +37,7 @@ use C4::Members qw/GetHideLostItemsPreference/;
 use C4::Reserves qw(GetReservesFromBiblionumber);
 
 use Koha::Acquisition::Bookseller;
+use C4::Inventory qw(GetInvBookItemInfoByItemNr AddItemToInventory_BPK_Book);
 use Koha::DateUtils;
 
 my $query=new CGI;
@@ -199,6 +200,26 @@ foreach my $item (@items){
         }
     }
 
+    {
+        last unless C4::Context->preference("InventoryBookEnable");
+
+        my $ibitem = GetInvBookItemInfoByItemNr( $item->{'itemnumber'} );
+        $item->{invbookitem} = $ibitem;
+        $ibitem->{invbook_item_id} && last;
+
+        last unless (C4::Context->preference("InventoryBookVariant")
+          && C4::Context->preference("InventoryBookVariant") eq 'BPK');
+
+        my ($result, $ecode) = AddItemToInventory_BPK_Book( {
+            itemnumber => $item->{'itemnumber'},
+            check_possibility => 1,
+        } );
+        my $invbcp = { not_ok => $ecode };
+        ref($ecode) eq 'HASH' && do {
+            $invbcp = { add_ok => $ecode };
+        };
+        $item->{invbookcheckp} = $invbcp;
+    }
 }
 $template->param(count => $data->{'count'},
 	subscriptionsnumber => $subscriptionsnumber,

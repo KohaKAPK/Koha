@@ -73,6 +73,7 @@
             <input type="hidden" name="shipmentdate" value="[% shipmentdate | $KohaDates %]" />
             <input type="hidden" name="shipmentcost" value="[% shipmentcost %]" />
             <input type="hidden" name="shipmentcost_budgetid" value="[% shipmentcost_budgetid %]" />
+            <input type="hidden" name="accession_id" value="[% accession_id %]" />
             <input type="submit" class="button" value="Create new invoice anyway" />
         </form>
     </div>
@@ -157,7 +158,8 @@
             <label for="invoice">Vendor invoice </label>
             <input type="hidden" name="booksellerid" value="[% booksellerid %]" />
             <input type="hidden" name="op" value="new" />
-			<input type="text" size="20" id="invoice" name="invoice" class="focus" />
+            <input type="hidden" name="accession_id" value="[% accession_id %]" />
+			<input type="text" size="20" id="invoice" name="invoice" class="focus" value="[% accession_name %]"/>
         </li>
 		[% IF ( gst ) %]
         <li>

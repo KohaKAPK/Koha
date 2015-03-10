@@ -138,6 +138,13 @@ $(document).ready(function() {
 <h1>Items for [% title |html %] [% IF ( author ) %] by [% author %][% END %] (Record #[% biblionumber %])</h1>
 
 [% IF ( barcode_not_unique ) %]<div class="dialog alert"><strong>Error saving item</strong>: Barcode must be unique.</div>[% END %]
+[% IF ( IVB_ENTRY_ADD_UNSUCCESSFULL ) %]<div class="dialog alert"><strong>Błąd dodawania do inwenarza</strong>: Prawdopodobnie, brak jenego z pól obowiązkowych.</div>[% END %]
+[% IF ( IVB_ENTRY_ALREADY_EXISTS ) %]<div class="dialog alert"><strong>Błąd dodawania do inwentarza</strong>: Egzemplarz o tym numerze już istnieje. </div>[% END %]
+[% IF ( ITEM_ALREADY_IN_INV ) %]<div class="dialog alert"><strong>Błąd dodawania do inwentarza</strong>: Już dodany do inwentarza pod innym numerem. </div>[% END %]
+[% IF ( ITEM_NOT_FOUND ) %]<div class="dialog alert"><strong>Błąd dodawania do inwentarza</strong>: Nie znaleziono egzemplarza. </div>[% END %]
+[% IF ( NO_INV_BOOK_ID ) %]<div class="dialog alert"><strong>Błąd dodawania do inwentarza</strong>: Brak ID księgi inwentarzowej. </div>[% END %]
+[% IF ( NO_DATA ) %]<div class="dialog alert"><strong>Błąd dodawania do inwentarza</strong>: Brak danych danych. </div>[% END %]
+[% IF ( NO_ITEM ) %]<div class="dialog alert"><strong>Błąd dodawania do inwentarza</strong>: Brak rzeczonego egzemplarza. </div>[% END %]
 [% IF ( no_next_barcode ) %]<div class="dialog alert"><strong>Error saving items</strong>: Unable to automatically determine values for barcodes. No item has been inserted.</div>[% END %]
 [% IF ( book_on_loan ) %]<div class="dialog alert"><strong>Cannot delete</strong>: item is checked out.</div>[% END %]
 [% IF ( book_reserved ) %]<div class="dialogalert"><strong>Cannot delete</strong>: item has a waiting hold.</div>[% END %]

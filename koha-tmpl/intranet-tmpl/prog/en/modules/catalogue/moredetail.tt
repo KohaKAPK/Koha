@@ -16,6 +16,7 @@
 </head>
 <body id="catalog_moredetail" class="catalog">
 [% USE KohaDates %]
+[% USE Koha %]
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'cat-search.inc' %]
 
@@ -234,6 +235,9 @@
             </li>
             </ol>
             </div>
+
+            [% IF ( Koha.Preference('InventoryBookEnable') ) %][% INCLUDE 'cat-moredetail-invbook-item.inc' %][% END %]
+
 </div>
 [% END %]
 

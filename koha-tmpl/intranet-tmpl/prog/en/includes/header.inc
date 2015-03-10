@@ -8,6 +8,7 @@
             [% IF ( intranetbookbag ) %]
             <li><a href="#" id="cartmenulink">Cart<span id="basketcount"></span></a></li>
             [% END %]
+            <li><a href="/cgi-bin/koha/inventory/inventory-home.pl" id="inventorymenulink">Inwentarz</a></li>
             [% IntranetNav %]
             <li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">More <b class="caret"></b></a>

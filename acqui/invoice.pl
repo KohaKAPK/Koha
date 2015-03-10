@@ -37,6 +37,7 @@ use C4::Budgets;
 
 use Koha::Acquisition::Bookseller;
 use Koha::Misc::Files;
+use C4::Inventory qw/SearchInvBookAccessions/;
 
 my $input = new CGI;
 my ( $template, $loggedinuser, $cookie, $flags ) = get_template_and_user(
@@ -154,7 +155,10 @@ foreach my $budget (@$budgets) {
     push @budgets_loop, \%line;
 }
 
+my $accession = SearchInvBookAccessions({ invoice_id => $details->{'invoiceid'}});
+
 $template->param(
+    accession        => $accession,
     invoiceid        => $details->{'invoiceid'},
     invoicenumber    => $details->{'invoicenumber'},
     suppliername     => $details->{'suppliername'},

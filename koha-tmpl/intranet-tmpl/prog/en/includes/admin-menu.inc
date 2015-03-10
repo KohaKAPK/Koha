@@ -57,6 +57,12 @@
 
 </ul>
 
+<h5>Inventory books</h5>
+<ul>
+    <li><a href="/cgi-bin/koha/inventory/inventory_books_definitions.pl">Book definitions</a></li>
+    <li><a href="/cgi-bin/koha/inventory/inventory_books_permissions.pl">Set up book permissions</a>
+</ul>
+
 <h5>Additional parameters</h5>
 
 <ul>

@@ -2764,3 +2764,16 @@ span.onsite_checkout {
     border-radius: 4px;
     border : 1px solid #FFF2CE;
 }
+
+.sorted tbody td.editable {
+    background-color: #FFFFCC;
+}
+.selected { background-color : #CCE0FC; }
+
+td.details_control {
+        background: url('../../img/details_open.png') no-repeat center center;
+                        cursor: pointer;
+}
+tr.shown td.details_control {
+        background: url('../../img/details_close.png') no-repeat center center;
+}

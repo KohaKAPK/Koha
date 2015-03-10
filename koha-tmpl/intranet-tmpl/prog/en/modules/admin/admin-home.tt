@@ -1,3 +1,4 @@
+[% USE Koha %]
 [% INCLUDE 'doc-head-open.inc' %]
 <title>Koha &rsaquo; Administration</title>
 [% INCLUDE 'doc-head-close.inc' %]
@@ -57,6 +58,17 @@
     <dt><a href="/cgi-bin/koha/admin/cities.pl">Cities and towns</a></dt>
     <dd>Define cities and towns that your patrons live in.</dd>
 </dl>
+
+[% IF (Koha.Preference('InventoryBookEnable')) %]
+<h3>Inventory books</h3>
+<dl>
+    <dt><a href="/cgi-bin/koha/inventory/inventory_books_definitions.pl">Manage inventory books definitions</a></dt>
+    <dd>Define, manage, set up and configure various kinds of inventory book types (inventory books, accession books, writeoff books).</dd>
+    <dt><a href="/cgi-bin/koha/inventory/inventory_books_permissions.pl">Set up inventory books permissions</a></dt>
+    <dd>Configure permissions for individual inventory books and particular staff users.</dd>
+</dl>
+[% END %]
+
 </div>
 <div class="yui-u">
 <h3>Catalog</h3>

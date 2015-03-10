@@ -120,6 +120,8 @@
       <p>
           <a href="/cgi-bin/koha/acqui/parcel.pl?invoiceid=[% invoiceid %]">Go to receipt page</a>
           [% IF Koha.Preference('AcqEnableFiles') %]| <a href="/cgi-bin/koha/acqui/invoice-files.pl?invoiceid=[% invoiceid %]">Manage invoice files</a>[% END %]
+          [%- IF ( accession ) -%] | Powiązane akcesje:
+          [% FOREACH accessloo IN accession %] <a href="/cgi-bin/koha/inventory/accession_manage.pl?acc_id=[% accessloo.accession_id %]">[% accessloo.accession_number %]</a> |[% END %] [%- END -%]
       </p>
       <h2>Invoice details</h2>
       [% IF orders_loop.size %]
