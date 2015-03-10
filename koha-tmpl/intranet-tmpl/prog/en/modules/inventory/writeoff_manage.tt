@@ -1,0 +1,254 @@
+[% USE KohaDates %]
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inventory</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<link rel="stylesheet" type="text/css" href="[% themelang %]/css/datatables.css" />
+[% INCLUDE 'datatables.inc' %]
+<script type="text/javascript" src="[% interface %]/lib/_local_/js/dataTables.tableTools.min.js"></script>
+<link rel="stylesheet" type="text/css" href="[% interface %]/lib/_local_/css/dataTables.tableTools.min.css" />
+[% INCLUDE 'calendar.inc' %]
+<script type="text/javascript">
+//<![CDATA[
+var Table = {};
+$(document).ready(function(){
+    Table.oTable = $('#writeoff_tab[% woff_id %]').dataTable($.extend(true, {}, {
+      "oTableTools": {
+          "sSwfPath": "[% interface %]/lib/_local_/swf/copy_csv_xls_pdf.swf",
+          "aButtons": [
+              "copy",
+              "csv",
+              "xls",
+              {
+                "sExtends": "pdf",
+                "sPdfOrientation": "landscape",
+                "sPdfSize": "A4"
+              },
+              {
+                 "sExtends": "print",
+                 "bShowAll": false
+              }
+          ]
+      },
+      "bAutoWidth": false,
+      "bProcessing": true,
+      "bServerSide": true,
+      "bStateSave": true,
+      "sPaginationType": "full_numbers",
+      "sDom": 'T<"top pager"ilp>rt<"bottom pager"lp><"clear">',
+      "sAjaxSource": 'writeoff_view_items_ajax.pl',
+      "aoColumns": [
+          { "mData": "date_added" },
+          { "mData": "inventory_number" },
+          { "mData": "item_callnumber" },
+          { "mData": "biblio_author" },
+          {
+            "mData": "biblio",
+            "mRender": function(data, type, full) {
+                if ( data.biblionumber ) {
+                    return '<a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber='+
+                    data.biblionumber +
+                    '">'+ data.biblio_title + '<a/>';
+                } else {
+                    return data.biblio_title;
+                }
+            }
+          },
+          { "mData": "biblio_publisher" },
+          { "mData": "accession_id" },
+          { "mData": "unitprice" },
+          { "mData": "notes" },
+          {
+            "mData": "button",
+            "mRender": function(data, type, full) {
+        [% IF ( woff_info.current_status != "CL" && woff_info.current_status != "PR" ) %]
+                var button = ' <button class="add_to_woff" onclick="javascript:add_to_woff(' +
+                    data.invbook_item_id +',\'delete\')">';
+                    button += 'Usuń z protokołu';
+                button += '</button>';
+                return button;
+        [% ELSE %]
+                return 'Protokół zamknięty';
+        [% END %]
+            }
+          }
+      ],
+	  "aoColumnDefs": [
+          { "bSortable": false, 'aTargets': [9] },
+          { "bVisible": false, 'aTargets': ["donotshow"] }
+      ],
+      "fnServerData": function ( sSource, aoData, fnCallback ) {
+          aoData.push( { "name": "inv_book", "value": "[% parent_invbook %]" } );
+          aoData.push( { "name": "writeoff_id", "value": "[% woff_id %]" } );
+          aoData.push( { "name": "woff_id", "value": "[% woff_id %]" } );
+          aoData.push( { "name": "filtersOn", "value": "1" } );
+          $.ajax({
+              'dataType': 'json',
+              'type': 'POST',
+              'url': sSource,
+              'data': aoData,
+              'success': function(json){
+                  fnCallback(json);
+              }
+          });
+      }
+    })); //dataTable
+
+    toggleManagedManually();
+    $("#cm_manually").change(function () { toggleManagedManually(); });
+    $("#uc_manually").change(function () { toggleManagedManually(); });
+}); //document.ready
+
+function toggleManagedManually() {
+    if ($("#cm_manually").attr('checked')) $("#cost_managed_manually").show(); else $("#cost_managed_manually").hide();
+    if ($("#uc_manually").attr('checked')) $("#count_managed_manually").show(); else $("#count_managed_manually").hide();
+}
+
+function add_to_woff(id, action){
+            $.ajax({
+                type: "POST",
+                async: false,
+                url: "writeoff_add_item_ajax.pl",
+                data: {
+                    woff_id: [% woff_id || 0 %],
+                    dateadded: "00-00-000",
+                    item_id: id,
+                    action: action
+                },
+                dataType: "script",
+                success: function(){
+                    Table.oTable.fnDraw();
+                },
+                error: function(){
+                    alert('Błąd systemu: Pozycja nie zmodyfikowana.');
+                    }
+              });
+
+    };
+
+//]]>
+</script>
+</head>
+<body id="writeoff_manage" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/inventory/inventory-home.pl">Inwentarz </a> &rsaquo; <a href="/cgi-bin/koha/inventory/writeoff.pl?inv_book=[% inv_book %]">Ubytki</a> &rsaquo; Edycja protokołu ubytków </div>
+
+<div id="doc2" class="yui-t7">
+
+   <div id="bd">
+		<div id="yui-main">
+		    <div class="yui-b">
+				<div class="yui-g">
+                [% UNLESS (error_inv_book) %]
+                <form name="writeoff" id="writeoff" action="/cgi-bin/koha/inventory/writeoff_manage.pl" method="get" >
+                    <input type="hidden" name="op" value="[% op %]"/>
+                    <input type="hidden" name="inv_book" value="[% inv_book %]"/>
+                    <input type="hidden" name="woff_id" value="[% woff_id %]"/>
+                    <input type="hidden" name="[% op %]_do" value="1"/>
+                    <fieldset class="rows" id="writeoff_info">
+                        <legend id="writeoff_lgd">Protokół ubytków</legend>
+                         <ol>
+                          <li><label for="wdate">Data wpisu:</label>
+                          <input type="text" id="wdate" name="wdate"  maxlength="10" size="10" value="[% woff_info.date_writeoff | $KohaDates %]" class="datepicker" /></li>
+                          <li><label for="woff_desc">Treść protokołu:</label>
+                          <textarea id="woff_desc" name="woff_desc" rows="20" cols="80">[% woff_info.base_document_description %]</textarea>
+                          <li><label for="woff_no">Numer kolejny rejestru:</label>
+                          <input type="text" id="woff_no" name="woff_no"  size="10" value="[% woff_no %]" />
+                          <li><label for="wbasenumber">Numer protokołu:</label>
+                          <input type="text" id="base_prefix" name="base_prefix" size="10" value="[% base_prefix %]" />
+                          <input type="text" id="base_cnt" name="base_cnt" size="10" value="[% base_cnt %]" />
+                          <input type="text" id="base_suffix" name="base_suffix" size="10" value="[% base_suffix %]" />
+                          </li>
+                          <li><label for="woff_reason">Powód ubytkowania:</label>
+                          [% IF WriteoffReasons %]
+                          <select id="woff_reason" name="woff_reason" required="required">
+                              <option value="">-----</option>
+                              [% FOREACH wfr IN WriteoffReasons %]
+                                [% IF woff_info.reason == wfr.authorised_value %]
+                                 <option value="[% wfr.authorised_value %]" selected="selected">[% wfr.lib %]</option>
+                                 [% ELSE %]
+                                 <option value="[% wfr.authorised_value %]">[% wfr.lib %]</option>
+                                 [% END %]
+                              [% END %]
+                          </select>
+                          [% ELSE %]
+                          <a href="/cgi-bin/koha/admin/authorised_values.pl?searchfield=IVB_WOFF_REASONS">Zdefiniuj powody ubytkowania</a>
+                          [% END %]
+                          </li>
+
+                          <li><label for="wnotes">Uwagi:</label>
+                          <textarea id="wnotes" name="wnotes" rows="3" cols="80">[% woff_info.notes %]</textarea></li>
+                          <div id="cost_managed_manually">
+                          <li><label for="wcost">Wartość jednostek:</label>
+                          <input type="text" id="wcost" name="wcost" size="20" value="[% woff_info.total_cost %]" />
+                          [% UNLESS ( op == "add" || woff_info.cost_managed_manually || woff_info.total_cost == woff_info.entries_total_cost ) %]
+                              <span style="color:red">(suma wartości jednostek: [% woff_info.entries_total_cost %])</span>
+                          [% END %]
+                          </li></div>
+                          <div id="count_managed_manually">
+                          <li><label for="wcount">Ilość jednostek:</label>
+                          <input type="text" id="wcount" name="wcount" size="6" value="[% woff_info.unit_count %]" /></li>
+                          </div>
+                          <li><label for="cm_manually">Koszt zarządzany ręcznie:</label>
+                          [% IF woff_info.cost_managed_manually %]
+                              <input type="checkbox" name="cm_manually" id="cm_manually" value="1" checked="checked" /></li>
+                          [% ELSE %]
+                              <input type="checkbox" name="cm_manually" id="cm_manually" value="1" /></li>
+                          [% END %]
+                          <li><label for="uc_manually">Ilość zarządzana ręcznie:</label>
+                          [% IF woff_info.count_managed_manually %]
+                              <input type="checkbox" name="uc_manually" id="uc_manually" value="1" checked="checked" /></li>
+                          [% ELSE %]
+                              <input type="checkbox" name="uc_manually" id="uc_manually" value="1"[% IF (woff_info.entries_unit_count) %] disabled="disabled"[% END %] /></li>
+                          [% END %]
+                          [% IF ( woff_info.current_status == "NA" ) %]
+                          <li><label for="current_status">Zamknij protokół:</label>
+                              <input type="checkbox" name="current_status" id="current_status" value="CL" /></li>
+                          [% ELSIF (woff_info.current_status == "CL" ) %]
+                          <li><label for="current_status">Protokół zamknięty:</label>
+                                    Brak możliwości edycji</li>
+                          [% END %]
+                         </ol>
+                    </fieldset>
+
+                    [% IF ( woff_info.current_status != "CL" && woff_info.current_status != "PR" ) %]
+                    <fieldset class="action"><input type="submit" value="Zatwierdź" class="submit"/>
+                    </fieldset>
+                    [% END %]
+                </form>
+                [% ELSE #UNLESS error %]
+                    <fieldset class="error" id="error_inv_book">
+                    <legend>Błąd</legend>
+                    Nie wybrano księgi lub błędna księga.
+                    </fieldset>
+                [% END %]
+                [% IF op == "edit" || op == "close" %]
+                <table id="writeoff_tab[% woff_id %]" class="sortable">
+                <thead>
+                    <tr>
+                    <td>Data nabycia</td>
+                    <td>Numer inwentarza</td>
+                    <td>Sygnatura</td>
+                    <td>Autor</td>
+                    <td>Tytuł / Vol / Rok</td>
+                    <td>Data wydania / Wydawca</td>
+                    <td>Nr akcesji</td>
+                    <td>Cena</td>
+                    <td>Uwagi</td>
+                    <td>Akcja</td>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+                </table>
+                [% END %]
+                </div>
+            </div>
+        <div class="yui-g">
+            [% #INCLUDE inventory-menu.inc %]
+        </div>
+    </div>
+</div>
+
+[% INCLUDE 'intranet-bottom.inc' %]

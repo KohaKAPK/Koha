@@ -1,0 +1,191 @@
+[% USE KohaDates %]
+[% USE Koha %]
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inventory</title>
+[% INCLUDE 'doc-head-close.inc' %]
+[% INCLUDE 'calendar.inc' %]
+<script type="text/javascript">
+//<![CDATA[
+
+jQuery.fn.filterByText = function(textbox, selectSingleMatch) {
+    return this.each(function() {
+            var select = this;
+            var options = [];
+            $(select).find('option').each(function() {
+                options.push({value: $(this).val(), text: $(this).text()});
+                });
+            $(select).data('options', options);
+            $(textbox).bind('change keyup', function() {
+                var options = $(select).empty().scrollTop(0).data('options');
+                var search = $.trim($(this).val());
+                var regex = new RegExp(search,'gi');
+
+                $.each(options, function(i) {
+                    var option = options[i];
+                    if(option.text.match(regex) !== null) {
+                    $(select).append(
+                        $('<option>').text(option.text).val(option.value)
+                        );
+                    }
+                    });
+                if (selectSingleMatch === true &&
+                    $(select).children().length === 1) {
+                $(select).children().get(0).selected = true;
+                }
+                });
+    });
+};
+
+$(function() {
+        $('#bookseller').filterByText($('#textbox'), true);
+});
+
+//]]>
+</script>
+</head>
+<body id="inventory_main" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/inventory/inventory-home.pl">Inventory </a> &rsaquo; <a href="/cgi-bin/koha/inventory/accession.pl?inv_book=[% inv_book %]">Accessions</a> &rsaquo; Accession modyfication </div>
+
+<div id="doc2" class="yui-t7">
+
+   <div id="bd">
+		<div id="yui-main">
+		    <div class="yui-b">
+				<div class="yui-g">
+                [% UNLESS (error_inv_book) %]
+                <form name="accession" id="accession" action="/cgi-bin/koha/inventory/accession_manage.pl" method="get" >
+                    <input type="hidden" name="op" value="[% op %]"/>
+                    <input type="hidden" name="inv_book" value="[% inv_book %]"/>
+                    <input type="hidden" name="acc_id" value="[% acc_id %]"/>
+                    <input type="hidden" name="[% op %]_do" value="1"/>
+                    <fieldset class="rows" id="accesion_info">
+                        <legend id="accession_lgd">[% IF ( op == "add" ) %] Dodaj
+                            [% ELSIF ( op == "del" ) %] Usuń
+                            [% ELSE %] Modyfikuj[% END %] akcesję</legend>
+                         <ol>
+                          [% IF ( op != "add" && acc_info.invoice_id ) %]
+                          <li><label for="accession">Odebrana akcesja:</label>
+                          <a href="/cgi-bin/koha/acqui/invoice.pl?invoiceid=[% acc_info.invoice_id %]">
+                            [% acc_info.accession_number %]</a>
+                          </li>
+                          [% END %]
+                          [% IF ( files ) %]
+                          <li><label for="files">Powiązane pliki:</label>
+                           [% FOREACH f IN files %]
+                         [% loop.count %]. <a href="/cgi-bin/koha/acqui/invoice-files.pl?invoiceid=[% acc_info.invoice_id %]&amp;op=download&amp;view=1&amp;file_id=[% f.file_id %]">[% f.file_description | html %]</a>
+                           [% END %]
+                           </li>[% END %]
+                          <li><label for="bookseller">Dostawca:</label>
+                          <select id="bookseller" name="bookseller" required>
+                          <option value=""></option>
+                          [% FOREACH bookselloo IN booksellers %]
+                            <option value="[% bookselloo.id %]"
+                              [%- IF ( acc_info.vendor_id == bookselloo.id )-%]selected="selected"[% END %]>                                 [% bookselloo.name %]</option>
+                          [% END %]
+                          </select><input id="textbox" type="text" size="50"/>
+                          </li>
+                          <li><label for="adate">Data akcesji:</label>
+                          <input type="text" id="adate" name="adate"  maxlength="10" size="10" value="[% acc_info.date_accessioned | $KohaDates %]" class="datepicker" /></li>
+                          <li><label for="anumber">Numer akcesji:</label>
+                          [% IF ( (Koha.Preference('InventoryBookVariant')) && (Koha.Preference('InventoryBookVariant') == 'BPK') ) %]
+                              <input type="hidden" id="acc_pref" name="acc_pref" value="[% acc_pref %]" />
+                              <input type="text" id="acc_pref_vo" name="acc_pref_vo" size=10 value="[% acc_pref %]" disabled />
+                          [% ELSE %]
+                              <input type="text" id="acc_pref" name="acc_pref"  size="10" value="[% acc_pref %]" />
+                          [% END %]
+                          <input type="text" id="acc_no" name="acc_no"  size="10" value="[% acc_no %]" />
+                          <input type="text" id="acc_suff" name="acc_suff"  size="10" value="[% acc_suff %]" />
+                          <li><label for="ainv">Numer faktury:</label>
+                          <input type="text" id="inv_no" name="inv_no" size="100" value="[% acc_info.invoice_document_nr %]" /></li>
+                          <li><label for="acost">Wartość materiałów kupionych:</label>
+                          <input type="text" id="acost" name="acost"  size="20" value="[% acc_info.total_cost %]" />
+                          [% UNLESS ( op == "add" || acc_info.cost_managed_manually || acc_info.total_cost == acc_info.entries_total_cost ) %]
+                              <span style="color:red">(suma wartości jednostek: [% acc_info.entries_total_cost %])</span>
+                          [% END %]
+                          </li>
+                          [% UNLESS ( novolumes_count && nofascile_count && noother_count && nospecial_count ) %]
+                        <fieldset class="rows" id="accesion_info" style="width: 40%; float: left;">
+                        <legend id="accession_lgd">Liczba jednostek</legend><ol>
+                          [% UNLESS novolumes_count %]
+                          <li><label for="avol">wolumen:</label>
+                          <input type="text" id="avol" name="avol" size="5" value="[% acc_info.volumes_count %]" /></li>
+                          [% END %]
+                          [% UNLESS nofascile_count %]
+                          <li><label for="afasc">zeszyt:</label>
+                          <input type="text" id="afasc" name="afasc" size="5" value="[% acc_info.fascile_count %]" /></li>
+                          [% END %]
+                          [% UNLESS noother_count %]
+                          <li><label for="aother">inne:</label>
+                          <input type="text" id="aother" name="aother" size="25" value="[% acc_info.other_count %]" /></li>
+                          [% END %]
+                          [% UNLESS nospecial_count %]
+                          <li><label for="aspecial">Liczba woluminów:</label>
+                          <input type="text" id="aspecial_count" name="aspecial_count" size="25" value="[% acc_info.special_count %]" /></li>
+                          [% END %]
+                          </ol></fieldset>[% END %]
+
+                          [% UNLESS noacquisition_mode %]
+                          <li><label for="aacq_mode">Sposób pozyskania:</label>
+                          <select id="aacq_mode" name="aacq_mode">
+                              <option value="">-----</option>
+                              [% FOREACH acm IN AcquisitionModes %]
+                                  [% IF (acm.authorised_value == acc_info.acquisition_mode) || (acm.authorised_value == default_soa) %]
+                                      <option value="[% acm.authorised_value %]" selected="selected">[% acm.lib %]</option>
+                                  [% ELSE %]
+                                      <option value="[% acm.authorised_value %]">[% acm.lib %]</option>
+                                  [% END %]
+                              [% END %]
+                          </select></li>
+                          [% END %]
+
+                          <li><label for="aother">Uwagi:</label>
+                          <textarea id="anotes" name="anotes" rows="10" cols="100" />[% acc_info.notes %]</textarea></li>
+                          <li><label for="cm_manually">Koszt zarządzany ręcznie:</label>
+                          [% IF acc_info.cost_managed_manually %]
+                              <input type="checkbox" name="cm_manually" id="cm_manually" value="1" checked="checked" /></li>
+                          [% ELSE %]
+                              <input type="checkbox" name="cm_manually" id="cm_manually" value="1" /></li>
+                          [% END %]
+                          [% IF op == 'add' %]
+                          <li>
+                          <fieldset>
+                          <legend>Po dodaniu:</legend>
+                              <input type="radio" name="go_to" id="recieve" value="recieve" checked="checked"/>
+                                <label style="float:none" for="recieve">przejdź do odbioru akcesji</label>
+                              <input type="radio" name="go_to" id="new" value="new"/>
+                                <label style="float:none" for="new">dodaj kolejną akcesję</label>
+                              <input type="radio" name="go_to" id="edit" value="edit"/>
+                                <label style="float:none" for="edit">pokaż akcesję</label>
+                              </fieldset>
+                            </li>
+                          [% END %]
+                         </ol>
+                    </fieldset>
+
+                    <fieldset class="action"><input type="submit" value="Zatwierdź" class="submit"/></fieldset>
+                    </fieldset>
+                </form>[% IF ( op == 'edit' && !acc_info.invoice_id && acc_info.vendor_id ) %]
+                <form id="acc_invoice" name="form_invoice" action="/cgi-bin/koha/acqui/parcels.pl" method="get">
+                    <input type="hidden" name="accession_id" value="[% acc_id %]"/>
+                    <fieldset class="action"><input type="submit" value="Odbiór akcesji" class="submit"/></fieldset>
+                </form>
+                [% END %]
+                [% ELSE #UNLESS error %]
+                    <fieldset class="error" id="error_inv_book">
+                    <legend>Błąd</legend>
+                    Nie wybrano księgi lub błędna księga.
+                    </fieldset>
+                [% END %]
+                </div>
+            </div>
+        <div class="yui-g">
+            [% #INCLUDE inventory-menu.inc %]
+        </div>
+    </div>
+</div>
+
+
+[% INCLUDE 'intranet-bottom.inc' %]

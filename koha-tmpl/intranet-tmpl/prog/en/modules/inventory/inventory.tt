@@ -1,0 +1,232 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inventory</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<link rel="stylesheet" type="text/css" href="[% themelang %]/css/datatables.css" />
+<script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.jeditable.mini.js"></script>
+[% INCLUDE 'datatables.inc' %]
+<script type="text/javascript" src="[% interface %]/lib/_local_/js/dataTables.tableTools.min.js"></script>
+<link rel="stylesheet" type="text/css" href="[% interface %]/lib/_local_/css/dataTables.tableTools.min.css" />
+[% INCLUDE 'calendar.inc' %]
+[% USE AuthorisedValues %]
+[% USE KohaDates %]
+<script type="text/javascript">
+//<![CDATA[
+
+$(document).ready(function(){
+    jQuery.fn.dataTableExt.oPagination.iFullNumbersShowPages = 11;
+    var oTable = $('#invtable[% inv_book %]').dataTable($.extend(true, {}, {
+      "oTableTools": {
+          "sSwfPath": "[% interface %]/lib/_local_/swf/copy_csv_xls_pdf.swf",
+          "aButtons": [
+              "copy",
+              "csv",
+              "xls",
+              {
+                "sExtends": "pdf",
+                "sPdfOrientation": "landscape",
+                "sPdfSize": "A4"
+              },
+              {
+                 "sExtends": "print",
+                 "bShowAll": false
+              }
+          ]
+      },
+      "bAutoWidth": false,
+      "bFilter": true,
+      "bProcessing": true,
+      "bServerSide": true,
+      "bStateSave": true,
+      "sAjaxSource": 'inventory_items_ajax.pl',
+      "sPaginationType": "full_numbers",
+      "sDom": 'T<"top pager"ilp>rt<"bottom pager"lp><"clear">',
+      "aLengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
+      "aoColumns": [
+          { "mData": "date_added" },
+          { "mData": "inventory_number" },
+          { "mData": "item_callnumber", "sClass": "editable" },
+          { "mData": "biblio_author" },
+          {
+            "mData": "biblio_title",
+            "mRender": function ( data, type, full ) {
+                if ( data.biblionumber ) {
+                    return '<a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber='+
+                    data.biblionumber +
+                    '">'+ data.biblio_title + '<a/>';
+                } else {
+                    return data.biblio_title;
+                }
+            }
+          },
+          { "mData": "biblio_publisher" },
+          {
+            "mData": "accession",
+            "mRender": function ( data, type, full ) {
+                if ( data && data.accession_id ){
+                    return '<a href ="/cgi-bin/koha/inventory/accession.pl?inv_book='+ data.invbook_definition_id +
+                        '&accession_no='+ encodeURIComponent(data.accession_number) + '&filtersOn=1">' +
+                        data.accession_number + '</a>';
+                } else {
+                    return '';
+                }
+            }
+          },
+          { "mData": "acquisition_mode" },
+          { "mData": "unitprice", "sClass": "editable" },
+          {
+            "mData": "writeoff",
+            "mRender": function ( data, type, full ) {
+                if ( data && data.writeoff_id ) {
+                    return '<a href="/cgi-bin/koha/inventory/writeoff_manage.pl?op=edit&woff_id='+
+                        data.writeoff_id +'">'+ data.base_document_number + '</a>';
+                } else {
+                    return '';
+                }
+            }
+          },
+          { "mData": "notes", "sClass": "editable" },
+      ],
+      "fnServerData": function ( sSource, aoData, fnCallback ) {
+          aoData.push( { "name": "inv_book", "value": [% inv_book %] } );
+          [% IF (filtersOn == 1) %]
+              aoData.push( { "name": "filtersOn", "value": "1" } );
+            [% FOREACH filterloo IN filters %]
+              aoData.push( { "name": "[% filterloo.key %]", "value": "[% filterloo.value %]" } );
+            [% END %]
+          [% END %]
+          $.ajax({
+              'dataType': 'json',
+              'type': 'POST',
+              'url': sSource,
+              'data': aoData,
+              'success': function(json){
+                  fnCallback(json);
+              }
+          });
+      },
+      "fnDrawCallback": function () {
+          $('.sorted tbody td.editable').editable( 'item_edit_ajax.pl', {
+            cancel : "Cancel",
+            submit : "Ok",
+            "callback": function( sValue, y ) {
+                oTable.fnDraw();
+            },
+            "submitdata": function ( value, settings ) {
+                return {
+                    "id": this.parentNode.getAttribute('id'),
+                    "column": oTable.fnGetPosition( this )[2],
+                };
+            },
+            "height": "14px",
+            "width": "100%"
+           } );
+      },
+      "fnFooterCallback": function ( nRow, aoData, iStart, iEnd, aiDisplay ) {
+          var iTotal = 0;
+          for ( var i=0 ; i<aiDisplay.length ; i++ ) {
+              iTotal += (aoData [ aiDisplay[i] ].unitprice)*1;
+          }
+          var nCells = nRow.getElementsByTagName('th');
+          nCells[1].innerHTML =  iTotal.toFixed(2) ;
+      }
+    })); //dataTable
+
+}); //document.ready
+//]]>
+</script>
+
+</head>
+<body id="inventory_main" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="inventory-home.pl">Inventory</a> &rsaquo; Inventory book </div>
+
+<div id="doc3" class="yui-t2">
+   <div id="bd">
+		<div id="yui-main">
+			<div class="yui-b">
+            [% UNLESS (error_inv_book) %]
+		        <table id="invtable[% inv_book %]" class="sorted">
+                <thead>
+                    <tr>
+                    <td>Accuisition date</td>
+                    <td>Stock number</td>
+                    <td>Call number</td>
+                    <td>Author</td>
+                    <td>Title / Vol / Year</td>
+                    <td>Publication date / Publisher</td>
+                    <td>Accession</td>
+                    <td>Source of acqisition</td>
+                    <td>Price</td>
+                    <td>Write off no.</td>
+                    <td>Notes</td>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+                <tfoot>
+                    <tr>
+                    <th style="text-align: right" colspan="8">Suma:</th>
+                    <th style="text-align: left" colspan="1"></th>
+                    <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+                </table>
+            [% ELSE #UNLESS error %]
+                <fieldset class="error" id="error_inv_book">
+                <legend>Błąd</legend>
+                Nie wybrano księgi lub błędna księga.
+                </fieldset>
+            [% END %]
+            </div>
+        </div> <!-- yui-main -->
+        <div class="yui-b">
+            <div id="advsearch" style="padding-bottom:3em;">
+                <form action="/cgi-bin/koha/inventory/inventory.pl" method="get">
+                  <fieldset class="brief">
+                    <legend>Set filters:</legend>
+                    <ol>
+                        <li>
+                            <label>Inventory book:</label>
+                            <select id="inv_book" name="inv_book">
+                            [% FOREACH bookloo IN inv_books %]
+                                <option value="[% bookloo.invbook_definition_id %]" [% IF bookloo.invbook_definition_id == inv_book %] selected="selected"[% END %]>[% bookloo.name %]</option>
+                            [% END %]
+                            </select>
+                        </li>
+                        <li>
+                            <label>Accuisition date from:</label>
+                            <input type="text" id="accq_from" name="accq_from" value="[% filters.accq_from %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Accuisition date to:</label>
+                            <input type="text" id="accq_to" name="accq_to" value="[% filters.accq_to %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Stock number from:</label>
+                            <input type="text" id="stock_from" value="[% filters.stock_from %]" name="stock_from"/>
+                        </li>
+                        <li>
+                            <label>Stock number to:</label>
+                            <input type="text" id="stock_to" value="[% filters.stock_to %]" name="stock_to"/>
+                        </li>
+                        <li>
+                            <label>Accession number:</label>
+                            <input type="text" id="accession_no" value="[% filters.accession_no %]" name="accession_no"/>
+                        </li>
+                        <li>
+                            <label>Sygnatura:</label>
+                            <input type="text" id="call_no" value="[% filters.call_no %]" name="call_no"/>
+                        </li>
+                    </ol>
+                    <input type="hidden" name="filtersOn" value="1" />
+                    <fieldset class="action">
+                        <input type="submit" value="Filter" />
+                    </fieldset>
+                  </fieldset>
+                </form>
+            </div> <!-- advsearch -->
+        </div><!-- yui-b -->
+    </div> <!-- bd -->
+[% INCLUDE 'intranet-bottom.inc' %]

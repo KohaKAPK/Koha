@@ -1,0 +1,34 @@
+From 0172e97c9213440dcaf6e78e5c270b849270dbd7 Mon Sep 17 00:00:00 2001
+From: Jacek Ablewicz <abl@biblos.pk.edu.pl>
+Date: Sat, 28 Jun 2014 09:49:32 +0200
+Subject: [PATCH] Inventory book system preferences
+
+---
+ .../prog/en/modules/admin/preferences/acquisitions.pref |   15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/koha-tmpl/intranet-tmpl/prog/en/modules/admin/preferences/acquisitions.pref b/koha-tmpl/intranet-tmpl/prog/en/modules/admin/preferences/acquisitions.pref
+index ac57f95..05e0a7a 100644
+--- a/koha-tmpl/intranet-tmpl/prog/en/modules/admin/preferences/acquisitions.pref
++++ b/koha-tmpl/intranet-tmpl/prog/en/modules/admin/preferences/acquisitions.pref
+@@ -67,3 +67,18 @@ Acquisitions:
+                   "pdfformat::layout3pagesfr": French 3-page
+                   "pdfformat::layout2pagesde": German 2-page
+             - layout when printing basket groups.
++    Inventory book settings:
++        -
++            - pref: InventoryBookEnable
++              default: 1
++              choices:
++                  yes: Enable
++                  no: Disable
++            - inventory book module.
++        -
++            - "Specific inventory book variant to use (if any):"
++            - pref: InventoryBookVariant
++              choices:
++                  "": "default"
++                  "BPK": Biblioteka PK
++                  "BKA": Biblioteka KA
+--
+1.7.10.4

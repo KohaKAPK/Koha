@@ -1,0 +1,480 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inventory &rsaquo; Accessions</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<link rel="stylesheet" type="text/css" href="[% themelang %]/css/datatables.css" />
+<script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.jeditable.mini.js"></script>
+[% INCLUDE 'datatables.inc' %]
+<script type="text/javascript" src="[% interface %]/lib/_local_/js/dataTables.tableTools.min.js"></script>
+<link rel="stylesheet" type="text/css" href="[% interface %]/lib/_local_/css/dataTables.tableTools.min.css" />
+[% INCLUDE 'calendar.inc' %]
+[% USE AuthorisedValues %]
+[% USE KohaDates %]
+<script type="text/javascript">
+//<![CDATA[
+
+$(document).ready(function(){
+
+    jQuery.fn.dataTableExt.oPagination.iFullNumbersShowPages = 9;
+    var oTable = $('#acctable[% inv_book %]').dataTable($.extend(true, {}, {
+      "oTableTools": {
+          "sSwfPath": "[% interface %]/lib/_local_/swf/copy_csv_xls_pdf.swf",
+          "aButtons": [
+              "copy",
+              "csv",
+              "xls",
+              {
+                "sExtends": "pdf",
+                "sPdfOrientation": "landscape",
+                "sPdfSize": "A4"
+              },
+              {
+                 "sExtends": "print",
+                 "bShowAll": false
+              }
+          ]
+      },
+      "bAutoWidth": false,
+      "bFilter": true,
+      "bProcessing": true,
+      "bServerSide": true,
+      "bStateSave": true,
+      "sAjaxSource": 'inventory_accessions_ajax.pl',
+      "sPaginationType": "full_numbers",
+      "sDom": 'T<"top pager"ilp>rt<"bottom pager"lp><"clear">',
+      "aLengthMenu": [[10, 20, 50, 100], [10, 20, 50, 100]],
+	  "iDisplayLength": 20,
+	  "aaSorting": [[ 1, "desc" ]],
+	  "aoColumnDefs": [
+          { "bSortable": false, 'aTargets': [ 0, 4, 9 ] },
+          { "bVisible": false, 'aTargets': ["donotshow"] }
+      ],
+      "aoColumns": [
+          { "mData": "details_control", "sClass": "details_control" },
+          { "mData": "date_accessioned" },
+          { "mData": "accession_number" },
+          { "mData": "invoice_document_nr", "sClass": "editable" },
+          { "mData": "total_cost",
+            "mRender": function(data, type, full) {
+                data = (data*1);
+                full.entries_total_cost = (full.entries_total_cost*1);
+                if ( data == full.entries_total_cost || full.cost_manually == 1 ){
+                    return data.toFixed(2);
+                 } else {
+                    var diff =
+                       '<span style="color:red" title="Kwota niezgodności: '+
+                       (data - full.entries_total_cost).toFixed(2)+
+                       ' Kwota wprowadzona: '+ ( data.toFixed(2) || 0.0)+
+                       '">'+ full.entries_total_cost.toFixed(2) +'</span>';
+                    return diff;
+                 }
+            }
+          },
+          { "mData": "entries_volumes_count", "sClass": "editable" },
+          { "mData": "entries_fascile_count", "sClass": "editable" },
+          { "mData": "entries_other_count", "sClass": "editable" },
+          { "mData": "entries_special_count", "sClass": "editable" },
+          { "mData": "entries_total_count",
+            "mRender": function(data, type, full){
+                var iTotal = 0;
+                iTotal = full.entries_volumes_count*1 +
+                         full.entries_fascile_count*1 +
+                         full.entries_other_count*1 +
+                         full.entries_special_count*1;
+                return iTotal;
+            }
+          },
+          { "mData": "acquisition_mode" },
+          { "mData": "notes", "sClass": "editable" },
+      ],
+      "fnServerData": function ( sSource, aoData, fnCallback ) {
+          aoData.push( { "name": "inv_book", "value": [% inv_book %] } );
+          [% IF (filtersOn == 1) %]
+              aoData.push( { "name": "filtersOn", "value": "1" } );
+            [% FOREACH filterloo IN filters %]
+              aoData.push( { "name": "[% filterloo.key %]", "value": "[% filterloo.value %]" } );
+            [% END %]
+          [% END %]
+          $.ajax({
+              'dataType': 'json',
+              'type': 'POST',
+              'url': sSource,
+              'data': aoData,
+              'success': function(json){
+                  fnCallback(json);
+              }
+          });
+      },
+      "fnDrawCallback": function () {
+          $('.sorted tbody td.editable').editable( 'accession_edit_ajax.pl', {
+            cancel : "Cancel",
+            submit : "Ok",
+            "callback": function( sValue, y ) {
+                oTable.fnDraw();
+            },
+            "submitdata": function ( value, settings ) {
+                return {
+                    "id": this.parentNode.getAttribute('id'),
+                    "column": oTable.fnGetPosition( this )[2],
+                };
+            },
+            "height": "14px",
+            "width": "100%"
+           } );
+      },
+      "fnFooterCallback": function ( nRow, aoData, iStart, iEnd, aiDisplay ) {
+          var priceTotal = 0;
+          var volumes_count = 0;
+          var fascile_count = 0;
+          var other_count = 0;
+          var special_count = 0;
+          for ( var i=0 ; i<aiDisplay.length ; i++ ) {
+              priceTotal += (aoData [ aiDisplay[i] ].entries_total_cost)*1;
+               volumes_count += aoData [ aiDisplay[i] ].entries_volumes_count*1;
+               fascile_count += aoData [ aiDisplay[i] ].entries_fascile_count*1;
+               other_count += aoData [ aiDisplay[i] ].entries_other_count*1;
+               special_count += aoData [ aiDisplay[i] ].entries_special_count*1;
+          }
+          var iTotal_count = volumes_count + fascile_count + other_count + special_count;
+          var nCells = nRow.getElementsByTagName('th');
+          var iIndex = 1;
+          nCells[iIndex].innerHTML = priceTotal.toFixed(2);
+          [% UNLESS ( novolumes_count ) %]
+              iIndex++;
+          nCells[iIndex].innerHTML = volumes_count;
+          [% END %]
+          [% UNLESS ( nofascile_count ) %]
+              iIndex++;
+          nCells[iIndex].innerHTML = fascile_count;
+          [% END %]
+          [% UNLESS ( noother_count ) %]
+              iIndex++;
+          nCells[iIndex].innerHTML = other_count;
+          [% END %]
+          [% UNLESS ( nospecial_count ) %]
+              iIndex++;
+          nCells[iIndex].innerHTML = special_count;
+          [% END %]
+              iIndex++;
+          nCells[iIndex].innerHTML = iTotal_count;
+      }
+    })); //dataTable
+    $('#acctable[% inv_book %] tbody').on('click', 'tr', function () {
+            if ( $(this).hasClass('selected') ) {
+                $(this).removeClass('selected');
+                $("#acc_id").val('');
+                $("#acc_toolbar_button_edit").prop('disabled', true);
+                $("#acc_toolbar_button_delete").prop('disabled', true);
+            } else {
+                oTable.$('tr.selected').removeClass('selected');
+                $(this).addClass('selected');
+                var acc_id = $(this).attr('id');
+                $("#acc_id").val(acc_id);
+                $("#acc_toolbar_button_edit").prop('disabled', false);
+                $("#acc_toolbar_button_delete").prop('disabled', false);
+            }
+    } );
+
+    // Add event listener for opening and closing details
+    $('#acctable[% inv_book %] tbody').on('click', 'td.details_control', function () {
+            var tr = $(this).parents('tr')[0];
+
+            if ( oTable.fnIsOpen(tr) ) {
+                // This row is already open - close it
+                oTable. fnClose (tr);
+                tr.classList.remove('shown');
+            }
+            else {
+            var id = tr.getAttribute('id');
+            $.ajax({
+                type: "POST",
+                async: false,
+                url: "accession_detail_ajax.pl",
+                data: {
+                    acc_id: id
+                },
+                success: function(data){
+                    oTable. fnOpen ( tr, fnFormatDetails(data, tr), 'details' );
+                    tr.classList.add('shown');
+                }
+              });
+            }
+        } );
+
+}) //document.ready
+function fnFormatDetails ( data, tr ) {
+    // `d` is the original data object for the row
+    var d = jQuery.parseJSON(data);
+    var info = '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">';
+    if (d.invoice_id) {
+        info +=
+        '<tr>'+
+        '<td>Informacje o fakturze:</td>'+
+        '<td><table><tr><td>'+'Odebrana akcesja:'+'</td>'+
+        '<td><a href="/cgi-bin/koha/acqui/invoice.pl?invoiceid='+
+        +d.invoice_info.invoiceid+'">'+d.invoice_info.invoicenumber+'</a></td></tr>';
+        if (d.vendor) {
+            info += '<tr><td>Dostawca:</td><td><a href="/cgi-bin/koha/acqui/supplier.pl?booksellerid='+
+                d.vendor.id+'">'+
+                d.vendor.name+'</a></td></tr>';
+        }
+        if(d.file_info) {
+            info += '<tr><td>Załączone pliki:</td><td>';
+                for ( i=0; i < d.file_info.length; i++) {
+                    info += d.file_info[i].file_description +
+                        ': <a href="/cgi-bin/koha/acqui/invoice-files.pl?invoiceid='
+                        + d.invoice_info.invoiceid +'&amp;op=download&amp;view=1&amp;file_id='+
+                         d.file_info[i].file_id + '">'+d.file_info[i].file_name+'</a></br>';
+                }
+                info += '</td></tr>';
+        }
+
+        info +=
+        '</tr></table></td></tr>';
+    } //invoice details
+    if (d.invoice_info && d.invoice_info.orders.length > 0){
+        var item_exist = false; //at least 1 unreceived item
+        var inv_info = '<tr><td>Odebrane pozycje:</td><td><table>'+
+            '<tr><thead><td>Tytuł</td>'+
+            '<td>Cena</td>'+
+            '<td>Ilość</td>'+
+            '<td>Inwentarz</td>'+
+            '<td>Koszyk</td>'+
+            '<td>Data utworzenia zamówienia</td>'+
+            '<td>Modyfikacja zamówienia</td>'+
+            '</thead>';
+        for (i=0; i < d.invoice_info.orders.length; i++) {
+            var infos = d.invoice_info.orders[i];
+            var order_info =
+                '<tr><td><a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber='+
+                    infos.biblionumber+'">'+infos.title + ' / '+
+                    ( infos.author || '' )+'</a></td>'+
+                '<td>'+ infos.ecost +'</td>'+
+                '<td>'+ infos.quantityreceived +'</td>'+
+                '<td>';
+            var items_info = '';
+            for(k=0; k < infos.quantityreceived; k++ ) {
+                var item = infos.iteminfos[k];
+                if (item.stocknumber) {
+                } else {
+                    items_info += '<a href="/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber='+
+                        item.biblionumber +
+                        '&itemnumber='+item.itemnumber+
+                        '&accession_id='+d.accession_id+
+                        '#edititem">Dodaj do inwentarza</a></br>';
+                    item_exist = true;
+                }
+            }
+            order_info += items_info;
+            order_info +=
+                '</td>'+
+                '<td><a href="/cgi-bin/koha/acqui/basket.pl?basketno='+infos.basketno+'">'+ infos.basketname+'</a></td>'+
+                '<td>'+ infos.datecreated +'</td>'+
+                '<td><a href="/cgi-bin/koha/acqui/neworderempty.pl?ordernumber='+
+                    infos.ordernumber+'">'+
+                     infos.ordernumber+'</a></td></tr>';
+            if (items_info) {
+                inv_info += order_info;
+            }
+        }
+        inv_info += '</tr></table></td></tr>';
+        if (item_exist) {
+            info += inv_info;
+        }
+    }
+    if (d.iteminfos && d.iteminfos.length > 0) {
+        info += '<tr><td>Egzemplarze przypisane do akcesji:</td><td><table>'+
+            '<tr><thead><tr><td rowspan="2">Tytuł</td>'+
+            '<td rowspan="2">Cena</td>'+
+            '<td rowspan="2">Ilość</td>'+
+            '<td colspan="2" style="text-align:center"> Przejdź do:</td> </tr><tr> <td>Egzemplarz</td>'+
+            '<td>Inwentarz</td></tr>'+
+            '</thead>';
+        var price_sum = 0;
+        var count_sum = 0;
+        for (i=0; i<d.iteminfos.length; i++) {
+            var item = d.iteminfos[i];
+            price_sum += parseFloat(item.price);
+            count_sum++;
+            info +=
+                '<tr><td><a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber='+
+                item.biblionumber+'">'+item.title + ' '+
+                ( item.author || '')+'</a></td>'+
+                '<td>'+ item.price +'</td>'+
+                '<td>1</td>'+
+                '<td>';
+                if (item.stocknumber) {
+                    info += '<a href="/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber='+
+                        item.biblionumber +
+                        '&accession_id='+d.accession_id+
+                        '&itemnumber='+item.itemnumber+'#edititem">'+ item.stocknumber +'</a>';
+                } else {
+                    info += '<a href="/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber='+
+                        item.biblionumber +
+                        '&accession_id='+d.accession_id+
+                        '&itemnumber='+item.itemnumber+'#edititem">Dodaj do inwentarza</a>';
+                }
+                info += '</td> <td><a href="/cgi-bin/koha/inventory/inventory.pl?inv_book='+ item.invbook_definition_id +
+                    '&accession_no='+ encodeURIComponent(item.accession_number) +
+                    '&filtersOn=1">' + item.accession_number +
+                    '</a></td>';
+            }
+        info += '<tfoot><tr><th style="text-align: right">Suma:</th>'+
+            '<th>' + price_sum.toFixed(2) + '</th><th>' + count_sum +
+            '</th><th></th></tr></tfoot>' +
+            '</tr></table></td></tr>';
+        }
+
+    if (!d.invoice_id){
+        info += '<tr><td>Brak informacji o odebranej akcesji!</td></tr>'+
+            '<tr><td><a href="/cgi-bin/koha/acqui/parcels.pl?accession_id='+
+            d.accession_id + '">Przejdź do odbioru akcesji</a>';
+    }
+       info +=
+        '</table>';
+    return info;
+}
+//]]>
+</script>
+
+</head>
+<body id="inventory_main" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="inventory-home.pl">Inventory</a> &rsaquo; Accessions </div>
+
+<div id="doc3" class="yui-t2">
+   <div id="bd">
+		<div id="yui-main">
+			<div class="yui-b">
+            [% UNLESS (error_inv_book) %]
+            [% INCLUDE 'accession-toolbar.inc' %]
+
+		        <table id="acctable[% inv_book %]" class="sorted">
+                <thead>
+                    <tr>
+                    <td rowspan = "2"></td>
+                    <td rowspan = "2">Accession date</td>
+                    <td rowspan ="2">Accession no</td>
+                    <td rowspan ="2">Invoice no</td>
+                    <td rowspan ="2">Total cost</td>
+                    <td colspan="5" style="text-align:center">Liczba jednostek</td>
+                    <td rowspan ="2">Acq mode</td>
+                    <td rowspan ="2">Notes</td>
+                    </tr>
+                    <tr>
+                    [% UNLESS ( novolumes_count ) %]
+                    <td>Wolumen</td>
+                    [% ELSE %]
+                    <td class="donotshow">Wolumen</td>
+                    [% END %]
+                    [% UNLESS ( nofascile_count ) %]
+                    <td>Zeszyt</td>
+                    [% ELSE %]
+                    <td class="donotshow">Zeszyt</td>
+                    [% END %]
+                    [% UNLESS ( noother_count ) %]
+                    <td>Inne</td>
+                    [% ELSE %]
+                    <td class="donotshow">Inne</td>
+                    [% END %]
+                    [% UNLESS ( nospecial_count ) %]
+                    <td>Specjalne volumen</td>
+                    [% ELSE %]
+                    <td class="donotshow">Specjalne volumen</td>
+                    [% END %]
+                    <td>Total count</td>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+                <tfoot>
+                    <tr>
+                    <th style="text-align: right" colspan="4">Suma:</th>
+                    <th style="text-align: center"></th>
+                    [% UNLESS ( novolumes_count ) %]
+                    <th style="text-align: left"></th>
+                    [% ELSE %]
+                    <th class="donotshow"></th>
+                    [% END %]
+                    [% UNLESS ( nofascile_count ) %]
+                    <th style="text-align: left"></th>
+                    [% ELSE %]
+                    <th class="donotshow"></th>
+                    [% END %]
+                    [% UNLESS ( noother_count ) %]
+                    <th style="text-align: left"></th>
+                    [% ELSE %]
+                    <th class="donotshow"></th>
+                    [% END %]
+                    [% UNLESS ( nospecial_count ) %]
+                    <th style="text-align: left"></th>
+                    [% ELSE %]
+                    <th class="donotshow"></th>
+                    [% END %]
+                    <th style="text-align: left" colspan="3"></th>
+                    </tr>
+                </tfoot>
+                </table>
+        [% ELSE #UNLESS error %]
+            <fieldset class="error" id="error_inv_book">
+            <legend>Błąd</legend>
+            Nie wybrano księgi lub błędna księga.
+            </fieldset>
+        [% END %]
+            </div>
+        </div> <!-- yui-main -->
+        <div class="yui-b">
+            <div id="advsearch" style="padding-bottom:3em;">
+                <form action="/cgi-bin/koha/inventory/accession.pl" method="get">
+                  <fieldset class="brief">
+                    <legend>Set filters:</legend>
+                    <ol>
+                        <li>
+                            <label>Accession book:</label>
+                            <select id="inv_book" name="inv_book">
+                            [% FOREACH bookloo IN inv_books %]
+                                <option value="[% bookloo.invbook_definition_id %]" [% IF bookloo.invbook_definition_id == inv_book %] selected="selected"[% END %]>[% bookloo.name %]</option>
+                            [% END %]
+                            </select>
+                        </li>
+                        <li>
+                            <label>Accession date from:</label>
+                            <input type="text" id="accdate_from" name="accdate_from" value="[% filters.accdate_from %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Accession date to:</label>
+                            <input type="text" id="accdate_to" name="accdate_to" value="[% filters.accdate_to %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Accession number:</label>
+                            <input type="text" id="accession_no" value="[% filters.accession_no %]" name="accession_no"/>
+                        </li>
+                        <li>
+                            <label>Invoice number:</label>
+                            <input type="text" id="invoice_no" value="[% filters.invoice_no %]" name="invoice_no"/>
+                        </li>
+                        <li>
+                            <label>Sposób nabycia:</label>
+                            <select id="acc_acq_mode" name="acc_acq_mode">
+                                <option value="">Dowolny</option>
+                                [% FOREACH acm IN AcquisitionModes %]
+                                    [% IF acm.authorised_value == filters.acc_acq_mode %]
+                                        <option value="[% acm.authorised_value %]" selected="selected">[% acm.lib %]</option>
+                                    [% ELSE %]
+                                        <option value="[% acm.authorised_value %]">[% acm.lib %]</option>
+                                    [% END %]
+                                [% END %]
+                            </select>
+                        </li>
+                    </ol>
+                    <input type="hidden" name="filtersOn" value="1" />
+                    <fieldset class="action">
+                        <input type="submit" value="Filter" />
+                    </fieldset>
+                  </fieldset>
+                </form>
+            </div> <!-- advsearch -->
+        </div><!-- yui-b -->
+    </div> <!-- bd -->
+[% INCLUDE 'intranet-bottom.inc' %]

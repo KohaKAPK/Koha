@@ -1,0 +1,328 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inwentarz &rsaquo; Ubytki</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<link rel="stylesheet" type="text/css" href="[% themelang %]/css/datatables.css" />
+<script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.jeditable.mini.js"></script>
+[% INCLUDE 'datatables.inc' %]
+<script type="text/javascript" src="[% interface %]/lib/_local_/js/dataTables.tableTools.min.js"></script>
+<link rel="stylesheet" type="text/css" href="[% interface %]/lib/_local_/css/dataTables.tableTools.min.css" />
+[% INCLUDE 'calendar.inc' %]
+[% USE AuthorisedValues %]
+[% USE KohaDates %]
+<script type="text/javascript">
+//<![CDATA[
+var auth_reason = {};
+[% SET locloop = AuthorisedValues.Get( 'IVB_WOFF_REASONS' ) %]
+[% FOREACH locloo IN locloop %]
+auth_reason["[% locloo.authorised_value %]"] = "[% locloo.lib %]";
+[% END %]
+var auth_status = {};
+[% SET locloop = AuthorisedValues.Get( 'IVB_WOFF_STATUS' ) %]
+[% FOREACH locloo IN locloop %]
+auth_status["[% locloo.authorised_value %]"] = "[% locloo.lib %]";
+[% END %]
+
+$(document).ready(function(){
+
+    jQuery.fn.dataTableExt.oPagination.iFullNumbersShowPages = 9;
+    var oTable = $('#wofftable[% inv_book %]').dataTable($.extend(true, {}, {
+      "oTableTools": {
+          "sSwfPath": "[% interface %]/lib/_local_/swf/copy_csv_xls_pdf.swf",
+          "aButtons": [
+              "copy",
+              "csv",
+              "xls",
+              {
+                "sExtends": "pdf",
+                "sPdfOrientation": "landscape",
+                "sPdfSize": "A4"
+              },
+              {
+                 "sExtends": "print",
+                 "bShowAll": false
+              }
+          ]
+      },
+      "bAutoWidth": false,
+      "bFilter": true,
+      "bProcessing": true,
+      "bServerSide": true,
+      "bStateSave": true,
+      "sAjaxSource": 'inventory_writeoffs_ajax.pl',
+      "sPaginationType": "full_numbers",
+      "sDom": 'T<"top pager"ilp>rt<"bottom pager"lp><"clear">',
+      "aLengthMenu": [[10, 20, 50, 100], [10, 20, 50, 100]],
+	  "iDisplayLength": 20,
+	  "aaSorting": [[ 2, "desc" ]],
+	  "aoColumnDefs": [
+          { "bSortable": false, 'aTargets': [ 0, 4, 5, 6, 8 ] },
+          { "bVisible": false, 'aTargets': ["donotshow"] }
+      ],
+      "aoColumns": [
+          { "mData": "details_control", "sClass": "details_control" },
+          { "mData": "date_writeoff" },
+          { "mData": "writeoff_number" },
+          { "mData": "base_document_number" },
+          { "mData": "base_seq_nr_first_last" },
+          { "mData": "entries_unit_count" },
+          { "mData": "total_cost",
+            "mRender": function(data, type, full) {
+                data = (data*1);
+                full.entries_total_cost = (full.entries_total_cost*1);
+                if ( data == full.entries_total_cost || full.cost_manually == 1 ){
+                    return data.toFixed(2);
+                 } else {
+                    var diff =
+                       '<span style="color:red" title="Kwota niezgodności: '+
+                       (data - full.entries_total_cost).toFixed(2)+
+                       ' Kwota wprowadzona: '+ ( data.toFixed(2) || 0.0)+
+                       '">'+ full.entries_total_cost.toFixed(2) +'</span>';
+                    return diff;
+                 }
+            }
+          },
+          { "mData": "reason",
+            "mRender": function(data, type, full) {
+                if (data) {
+                    return auth_reason[data];
+                } else {
+                    return "Nie określono przyczyny ubytkowania";
+                }
+            }
+          },
+          { "mData": "notes", "sClass": "editable" },
+      ],
+      "fnServerData": function ( sSource, aoData, fnCallback ) {
+          aoData.push( { "name": "inv_book", "value": [% inv_book %] } );
+          [% IF (filtersOn == 1) %]
+              aoData.push( { "name": "filtersOn", "value": "1" } );
+            [% FOREACH filterloo IN filters %]
+              aoData.push( { "name": "[% filterloo.key %]", "value": "[% filterloo.value %]" } );
+            [% END %]
+          [% END %]
+          $.ajax({
+              'dataType': 'json',
+              'type': 'POST',
+              'url': sSource,
+              'data': aoData,
+              'success': function(json){
+                  fnCallback(json);
+              }
+          });
+      },
+      "fnDrawCallback": function () {
+          $('.sorted tbody td.editable').editable( 'writeoff_edit_ajax.pl', {
+            cancel : "Cancel",
+            submit : "Ok",
+            "callback": function( sValue, y ) {
+                oTable.fnDraw();
+            },
+            "submitdata": function ( value, settings ) {
+                return {
+                    "id": this.parentNode.getAttribute('id'),
+                    "column": oTable.fnGetPosition( this )[2],
+                };
+            },
+            "height": "14px",
+            "width": "100%"
+           } );
+      }
+    })); //dataTable
+    $('#wofftable[% inv_book %] tbody').on('click', 'tr', function () {
+            if ( $(this).hasClass('selected') ) {
+                $(this).removeClass('selected');
+                $("#woff_id").val('');
+            } else {
+                oTable.$('tr.selected').removeClass('selected');
+                $(this).addClass('selected');
+                var woff_id = $(this).attr('id');
+                $("#woff_id").val(woff_id);
+            }
+    } );
+
+    // Add event listener for opening and closing details
+    $('#wofftable[% inv_book %] tbody').on('click', 'td.details_control', function () {
+            var tr = $(this).parents('tr')[0];
+
+            if ( oTable.fnIsOpen(tr) ) {
+                // This row is already open - close it
+                oTable. fnClose (tr);
+                tr.classList.remove('shown');
+            }
+            else {
+            var id = tr.getAttribute('id');
+            $.ajax({
+                type: "POST",
+                async: false,
+                url: "writeoff_detail_ajax.pl",
+                data: {
+                    woff_id: id
+                },
+                success: function(data){
+                    oTable. fnOpen ( tr, fnFormatDetails(data, tr), 'details' );
+                    tr.classList.add('shown');
+                }
+              });
+            }
+        } );
+
+}) //document.ready
+function fnFormatDetails ( data, tr ) {
+    // `d` is the original data object for the row
+    var d = jQuery.parseJSON(data);
+    var info = '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">';
+
+    info += '<tr><td colspan="2"><a href="/cgi-bin/koha/inventory/writeoff_manage.pl?woff_id='+
+        d.writeoff_id + '">Pokaż szczegóły wpisu</a></td></tr>' +
+            '<tr><td>Treść protokołu:</td><td>'+ ( d.base_document_description || '' )+ '</td></tr>' +
+            '<tr><td>Status protokołu:</td><td>'+ (auth_status[d.current_status] || d.current_status )+ '</td></tr>';
+    if (d.created) {
+        info +=
+            '<tr><td>Utworzone przez:</td><td>'+ ( d.created )+ '</td></tr>';
+    }
+    if (d.modified && d.modified != d.created) {
+        info +=
+            '<tr><td>Modyfikowane przez:</td><td>'+ ( d.modified )+ '</td></tr>';
+    }
+    if (d.count_managed_manually == "1") {
+        info +=
+            '<tr><td>Ilość jednostek:</td><td>'+d.unit_count+' (zarządzana ręcznie)</td></tr></table>';
+        return info;
+    }
+    info += '<tr><td colspan="2">Egzemplarze w protokole:</td></tr>'+
+            '<table>'+
+            '<tr><thead><tr><td rowspan="2">Tytuł</td>'+
+            '<td rowspan="2">Numer bieżący</td>'+
+            '<td rowspan="2">Cena</td>'+
+            '<td colspan="2" style="text-align:center"> Przejdź do:</td> </tr><tr> <td>Egzemplarz</td>'+
+            '<td>Inwentarz</td></tr>'+
+            '</thead>';
+    for (i=0; i<d.items.length; i++) {
+        var item = d.items[i];
+        info +=
+            '<tr><td><a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber='+
+            item.inv_item.biblionumber +'&showallitems=1">'+ item.biblio_title + '</a></td>' +
+            '<td>' + ( item.seq_number || '' ) + '</td>' +
+            '<td>' + parseFloat(item.inv_item.unitprice).toFixed(2) + '</td>' +
+            '<td> <a href="/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber='+
+            item.inv_item.biblionumber +
+            '&itemnumber='+item.inv_item.itemnumber+'#edititem">'+
+            item.inv_item.item_barcode +'</a></td>';
+         if (item.inv_item.accession_id) {
+             info += '<td><a href="/cgi-bin/koha/inventory/inventory.pl?inv_book='+
+                 item.inv_item.invbook_definition_id +
+                 '&accession_no='+ encodeURIComponent(item.accession_number) +
+                 '&filtersOn=1">'+ item.accession_number +
+                 '</a></td>';
+         } else {
+             info += '<td><a href="/cgi-bin/koha/inventory/inventory.pl?inv_book='+
+                 item.inv_item.invbook_definition_id +
+                 '&stock_from='+ (Number(item.inv_item.inventory_number) - Number(4)) +
+                 '&stock_to=' + (Number(item.inv_item.inventory_number) + Number(4)) +
+                 '&filtersOn=1">' + item.inv_item.inventory_number +
+                 '</a></td>';
+         }
+         info += '</tr>';
+    }
+
+    info += '</table>'; //internal table
+    info +=
+        '</table>';
+    return info;
+}
+//]]>
+</script>
+
+</head>
+<body id="inventory_writeoff" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="inventory-home.pl">Inwentarz</a> &rsaquo; Ubytki </div>
+
+<div id="doc3" class="yui-t2">
+   <div id="bd">
+		<div id="yui-main">
+			<div class="yui-b">
+            [% UNLESS (error_inv_book) %]
+            [% INCLUDE 'writeoff-toolbar.inc' %]
+
+		        <table id="wofftable[% inv_book %]" class="sorted">
+                <thead>
+                    <tr>
+                    <td></td>
+                    <td>Data wpisu</td>
+                    <td>Nr rejestru</td>
+                    <td>Podstawa zapisu</td>
+                    <td>Numery bieżące z podst.</td>
+                    <td>Liczba jednostek</td>
+                    <td>Wartość</td>
+                    <td>Przyczyna</td>
+                    <td>Uwagi</td>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+                </table>
+        [% ELSE #UNLESS error %]
+            <fieldset class="error" id="error_inv_book">
+            <legend>Błąd</legend>
+            Nie wybrano księgi lub błędna księga.
+            </fieldset>
+        [% END %]
+            </div>
+        </div> <!-- yui-main -->
+        <div class="yui-b">
+            <div id="advsearch" style="padding-bottom:3em;">
+                <form action="/cgi-bin/koha/inventory/writeoff.pl" method="get">
+                  <fieldset class="brief">
+                    <legend>Set filters:</legend>
+                    <ol>
+                        <li>
+                            <label>Księga ubytków:</label>
+                            <select id="inv_book" name="inv_book">
+                            [% FOREACH bookloo IN inv_books %]
+                                <option value="[% bookloo.invbook_definition_id %]" [% IF bookloo.invbook_definition_id == inv_book %] selected="selected"[% END %]>[% bookloo.name %]</option>
+                            [% END %]
+                            </select>
+                        </li>
+                        <li>
+                            <label>Data wpisu od:</label>
+                            <input type="text" id="wfdate_from" name="wfdate_from" value="[% filters.wfdate_from %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Data wpisu do:</label>
+                            <input type="text" id="wfdate_to" name="wfdate_to" value="[% filters.wfdate_to %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Nr wpisu (rejestru):</label>
+                            <input type="text" id="wf_number" value="[% filters.wf_number %]" name="wf_number" />
+                        </li>
+                        <li>
+                            <label>Nr podstawy zapisu:</label>
+                            <input type="text" id="wf_base_document_number" value="[% filters.wf_base_document_number %]" name="wf_base_document_number" />
+                        </li>
+                        <li>
+                            <label>Przyczyna ubytkowania:</label>
+                            <select id="wf_reason" name="wf_reason">
+                                <option value="">Dowolna</option>
+                                [% FOREACH wfr IN WriteoffReasons %]
+                                    [% IF wfr.authorised_value == filters.wf_reason %]
+                                        <option value="[% wfr.authorised_value %]" selected="selected">[% wfr.lib %]</option>
+                                    [% ELSE %]
+                                        <option value="[% wfr.authorised_value %]">[% wfr.lib %]</option>
+                                    [% END %]
+                                [% END %]
+                            </select>
+                        </li>
+                    </ol>
+                    <input type="hidden" name="filtersOn" value="1" />
+                    <fieldset class="action">
+                        <input type="submit" value="Filter" />
+                    </fieldset>
+                  </fieldset>
+                </form>
+            </div> <!-- advsearch -->
+        </div><!-- yui-b -->
+    </div> <!-- bd -->
+[% INCLUDE 'intranet-bottom.inc' %]

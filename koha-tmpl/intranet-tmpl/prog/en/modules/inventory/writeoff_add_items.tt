@@ -1,0 +1,199 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inventory</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<link rel="stylesheet" type="text/css" href="[% themelang %]/css/datatables.css" />
+<script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.jeditable.mini.js"></script>
+[% INCLUDE 'datatables.inc' %]
+[% INCLUDE 'calendar.inc' %]
+[% USE AuthorisedValues %]
+[% USE KohaDates %]
+<script type="text/javascript">
+//<![CDATA[
+
+var Table = {};
+
+$(document).ready(function(){
+    jQuery.fn.dataTableExt.oPagination.iFullNumbersShowPages = 11;
+    Table.oTable = $('#invtable[% inv_book %]').dataTable($.extend(true, {}, {
+      "bAutoWidth": false,
+      "bFilter": true,
+      "bProcessing": true,
+      "bServerSide": true,
+      "bStateSave": true,
+      "sAjaxSource": 'writeoff_view_items_ajax.pl',
+      "sPaginationType": "full_numbers",
+      "sDom": '<"top pager"ilp>rt<"bottom pager"lp><"clear">',
+      "aLengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
+      "aoColumns": [
+          { "mData": "date_added" },
+          { "mData": "inventory_number" },
+          { "mData": "item_callnumber" },
+          { "mData": "biblio_author" },
+          {
+            "mData": "biblio",
+            "mRender": function( data, type, full ) {
+                if ( data.biblionumber ) {
+                    return '<a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber='+
+                    data.biblionumber +
+                    '">'+ data.biblio_title + '<a/>';
+                } else {
+                    return data.biblio_title;
+                }
+            }
+          },
+          { "mData": "biblio_publisher" },
+          { "mData": "accession_id" },
+          { "mData": "unitprice" },
+          { "mData": "notes" },
+          {
+            "mData": "button",
+            "mRender": function(data, type, full) {
+                var button = ' <button class="add_to_woff" onclick="javascript:add_to_woff(' +
+                    data.invbook_item_id +',\''+ data.op +'\')">';
+                if ( data.op == 'delete' ) {
+                    button += 'Usuń z protokołu';
+                } else {
+                    button += 'Dodaj do protokołu';
+                }
+                button += '</button>';
+                return button;
+            }
+          }
+      ],
+      "fnServerData": function ( sSource, aoData, fnCallback ) {
+          aoData.push( { "name": "inv_book", "value": [% inv_book %] } );
+          aoData.push( { "name": "woff_id", "value": [% woff_id %] } );
+          [% IF (filtersOn == 1) %]
+              aoData.push( { "name": "filtersOn", "value": "1" } );
+            [% FOREACH filterloo IN filters %]
+              aoData.push( { "name": "[% filterloo.key %]", "value": "[% filterloo.value %]" } );
+            [% END %]
+          [% END %]
+          $.ajax({
+              'dataType': 'json',
+              'type': 'POST',
+              'url': sSource,
+              'data': aoData,
+              'success': function(json){
+                  fnCallback(json);
+              }
+          });
+      },
+    })); //dataTable
+}); //document.ready
+function add_to_woff(id, action){
+            $.ajax({
+                type: "POST",
+                async: false,
+                url: "writeoff_add_item_ajax.pl",
+                data: {
+                    dateadded: [% dateadded %],
+                    woff_id: [% woff_id %],
+                    item_id: id,
+                    action: action
+                },
+                dataType: "script",
+                success: function(){
+                    Table.oTable.fnDraw();
+                },
+                error: function(){
+                    alert('Błąd systemu: Pozycja nie zmodyfikowana.');
+                    }
+              });
+
+    };
+
+//]]>
+</script>
+
+</head>
+<body id="inventory_main" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="inventory-home.pl">Inwentarz</a> &rsaquo; <a href="writeoff.pl?inv_book=[% woff_invbook_id %]"> Rejestr ubytków </a> &rsaquo; <a href="writeoff_manage.pl?op=edit&woff_id=[% woff_id %]">Protokół ubytków nr [% woff_id %]</a> &rsaquo; Dodaj egzemplarze do protokołu  </div>
+
+<div id="doc3" class="yui-t2">
+   <div id="bd">
+		<div id="yui-main">
+			<div class="yui-b">
+            [% UNLESS (error_inv_book || closed) %]
+		        <table id="invtable[% inv_book %]" class="sorted">
+                <thead>
+                    <tr>
+                    <td>Data nabycia</td>
+                    <td>Numer inwentarza</td>
+                    <td>Sygnatura</td>
+                    <td>Autor</td>
+                    <td>Tytuł / Vol / Rok</td>
+                    <td>Data wydania / Wydawca</td>
+                    <td>Nr akcesji</td>
+                    <td>Cena</td>
+                    <td>Uwagi</td>
+                    <td>Akcja</td>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+                </table>
+            [% ELSIF ( closed ) #UNLESS error %]
+                <fieldset class="error" id="woff_closed">
+                <legend>Błąd</legend>
+                Wybrany protokół ubytków został zamknięty. Nie można już edytować!
+                </fieldset>
+            [% ELSE %]
+                <fieldset class="error" id="error_inv_book">
+                <legend>Błąd</legend>
+                Nie wybrano księgi lub błędna księga.
+                </fieldset>
+            [% END %]
+            </div>
+        </div> <!-- yui-main -->
+        <div class="yui-b">
+            <div id="advsearch" style="padding-bottom:3em;">
+                <form action="/cgi-bin/koha/inventory/writeoff_add_items.pl" method="get">
+                  <fieldset class="brief">
+                    <legend>Filtry:</legend>
+                    <ol>
+                        <li>
+                            <label>Księga inwentarzowa:</label>
+                            <select id="inv_book" name="disabled_inv_book" disabled="disabled">
+                            [% FOREACH bookloo IN inv_books %]
+                                <option value="[% bookloo.invbook_definition_id %]" [% IF bookloo.invbook_definition_id == inv_book %] selected="selected"[% END %]>[% bookloo.name %]</option>
+                            [% END %]
+                            </select>
+                        </li>
+                        <li>
+                            <label>Data nabycia od:</label>
+                            <input type="text" id="accq_from" name="accq_from" value="[% filters.accq_from %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Data nabycia do:</label>
+                            <input type="text" id="accq_to" name="accq_to" value="[% filters.accq_to %]" size="10" maxlength="10" class="datepicker" />
+                        </li>
+                        <li>
+                            <label>Numer inwentarza od:</label>
+                            <input type="text" id="stock_from" value="[% filters.stock_from %]" name="stock_from"/>
+                        </li>
+                        <li>
+                            <label>Numer inwentarza do:</label>
+                            <input type="text" id="stock_to" value="[% filters.stock_to %]" name="stock_to"/>
+                        </li>
+                        <li>
+                            <label>Numer akcesji:</label>
+                            <input type="text" id="accession_no" value="[% filters.accession_no %]" name="accession_no"/>
+                        </li>
+                    </ol>
+                    <input type="hidden" name="filtersOn" value="1" />
+                    <input type="hidden" name="woff_id" value="[% woff_id %]" />
+                    <input type="hidden" name="inv_book" value="[% inv_book %]" />
+                    <input type="hidden" name="woff_book_id" value="[% woff_book_id %]" />
+                    <fieldset class="action">
+                        <input type="submit" value="Filter" />
+                    </fieldset>
+                  </fieldset>
+                </form>
+            </div> <!-- advsearch -->
+        </div><!-- yui-b -->
+    </div> <!-- bd -->
+[% INCLUDE 'intranet-bottom.inc' %]

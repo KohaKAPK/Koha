@@ -1,0 +1,286 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Administration &rsaquo; Inwentarz &rsaquo; Definicje ksiąg</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body id="admin_inventory_books" class="admin">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/admin/admin-home.pl">Administration</a> &rsaquo; <a href="/cgi-bin/koha/inventory/inventory-home.pl">Inwentarz</a> &rsaquo; <a href="/cgi-bin/koha/inventory/inventory_books_definitions.pl">Definicje ksiąg</a>
+[% IF ( add_form ) %]
+&rsaquo; Nowa księga
+    [% IF (ae_type == 'A') %]
+        akcesji
+    [% ELSIF (ae_type == 'W') %]
+        ubytków
+    [% ELSE %]
+        inwentarzowa
+    [% END %]
+[% END %]
+[% IF ( edit_form ) %]
+&rsaquo; Modyfikacja księgi &quot;<i>[% ae_name |html %]</i>&quot;
+[% END %]
+</div>
+
+<div id="doc3" class="yui-t2">
+
+<div id="bd">
+    <div id="yui-main">
+    <div class="yui-b">
+[% IF ( else ) %]
+<div id="toolbar" class="btn-toolbar">
+    <a class="btn btn-small" id="new_acc_book" href="[% script_name %]?op=add_form&amp;ae_type=A"><i class="icon-plus"></i> Nowa księga akcesji</a>
+    <a class="btn btn-small" id="new_inv_book" href="[% script_name %]?op=add_form&amp;ae_type=I"><i class="icon-plus"></i> Nowa księga inwentarzowa</a>
+    <a class="btn btn-small" id="new_woff_book" href="[% script_name %]?op=add_form&amp;ae_type=W"><i class="icon-plus"></i> Nowa księga ubytków</a>
+</div>
+
+[% IF ( op_success ) %]
+<div class="dialog message"><h3>Operacja zakończona powodzeniem</h3>
+<form action="[% script_name %]" method="post">
+    <input type="submit" class="approve" value="OK" />
+</form></div>
+[% END %]
+
+[% IF ( op_error ) %]
+<div class="dialog alert"><h3>Operacja zakończona niepowodzeniem</h3>
+<form action="[% script_name %]" method="post">
+    <input type="submit" class="approve" value="OK" />
+</form></div>
+[% END %]
+
+<h2>Księgi akcesji</h2>
+
+[% UNLESS ( abookloop ) %]
+    <div class="dialog alert"><h3>Brak definicji ksiąg akcesji.</h3><p>Dodaj definicję księgi korzystając z przycisku powyżej.</p></div>
+[% ELSE %]
+    <table>
+        <tr>
+            <th>Nazwa księgi</th>
+            <th>Kod (ID)</th>
+            <th>Ilość wpisów</th>
+            <th>Wartość akcesji</th>
+            <th>Ilość jednostek</th>
+            <th>Wartość jednostek</th>
+            <th>Aktywna?</th>
+            <th>Akcje&nbsp;</th>
+        </tr>
+        [% FOREACH loo IN abookloop %]
+        [% UNLESS ( loop.odd ) %]
+        <tr class="highlight">
+        [% ELSE %]
+        <tr>
+        [% END %]
+            <td>[% loo.name |html %]</td>
+            <td>[% loo.bookcode |html %] (<a href="/cgi-bin/koha/inventory/accession.pl?inv_book=[% loo.invbook_definition_id %]">[% loo.invbook_definition_id %]</a>)</td>
+            <td align="right">[% loo.entries_total_count %]</td>
+            <td align="right">[% loo.entries_total_cost %]</td>
+            <td align="right">[% loo.item_total_count %]</td>
+            <td align="right">[% loo.item_total_cost %]</td>
+            <td align="center" style="color:green;">[% IF ( loo.active ) %]✓[% END %]</td>
+            <td><a href="[% script_name %]?op=edit_form&amp;invbook_definition_id=[% loo.invbook_definition_id %]">Edytuj</a>
+            [% UNLESS ( loo.entries_total_count ) %]| <a href="[% script_name %]?op=delete&amp;invbook_definition_id=[% loo.invbook_definition_id %]">Usuń</a>[% END %]</td>
+        </tr>
+        [% END %]
+    </table>
+    <br />
+[% END %]
+
+<h2>Księgi inwentarzowe</h2>
+
+[% UNLESS ( ibookloop ) %]
+    <div class="dialog alert"><h3>Brak definicji ksiąg inwentarzowych.</h3><p>Dodaj definicję księgi korzystając z przycisku powyżej.</p></div>
+[% ELSE %]
+    <table>
+        <tr>
+            <th>Nazwa księgi</th>
+            <th>Kod (ID)</th>
+            <th>Ilość jednostek</th>
+            <th>Wartość jednostek</th>
+            <th>Skojarzona z:</th>
+            <th>Aktywna?</th>
+            <th>Akcje&nbsp;</th>
+        </tr>
+        [% FOREACH loo IN ibookloop %]
+        [% UNLESS ( loop.odd ) %]
+        <tr class="highlight">
+        [% ELSE %]
+        <tr>
+        [% END %]
+            <td>[% loo.name |html %]</td>
+            <td>[% loo.bookcode |html %] (<a href="/cgi-bin/koha/inventory/inventory.pl?inv_book=[% loo.invbook_definition_id %]">[% loo.invbook_definition_id %]</a>)</td>
+            <td align="right">[% loo.entries_total_count %]</td>
+            <td align="right">[% loo.entries_total_cost %]</td>
+            <td>[% loo.associated_book_name |html %][% IF ( loo.writeoff_parent_invbook_defn_id ) %] ([% loo.writeoff_parent_invbook_defn_id %])[% END %]</td>
+            <td align="center" style="color:green;">[% IF ( loo.active ) %]✓[% END %]</td>
+            <td><a href="[% script_name %]?op=edit_form&amp;invbook_definition_id=[% loo.invbook_definition_id %]">Edytuj</a>
+            [% UNLESS ( loo.entries_total_count ) %]| <a href="[% script_name %]?op=delete&amp;invbook_definition_id=[% loo.invbook_definition_id %]">Usuń</a>[% END %]</td>
+        </tr>
+        [% END %]
+    </table>
+    <br />
+[% END %]
+
+<h2>Księgi ubytków</h2>
+
+[% UNLESS ( wbookloop ) %]
+    <div class="dialog alert"><h3>Brak definicji ksiąg ubytków.</h3><p>Dodaj definicję księgi korzystając z przycisku powyżej.</p></div>
+[% ELSE %]
+    <table>
+        <tr>
+            <th>Nazwa księgi</th>
+            <th>Kod (ID)</th>
+            <th>Ilość wpisów</th>
+            <th>Wartość wpisów</th>
+            <th>Ilość jednostek</th>
+            <th>Wartość jednostek</th>
+            <th>Skojarzona z:</th>
+            <th>Aktywna?</th>
+            <th>Akcje&nbsp;</th>
+        </tr>
+        [% FOREACH loo IN wbookloop %]
+        [% UNLESS ( loop.odd ) %]
+        <tr class="highlight">
+        [% ELSE %]
+        <tr>
+        [% END %]
+            <td>[% loo.name |html %]</td>
+            <td>[% loo.bookcode |html %] (<a href="/cgi-bin/koha/inventory/writeoff.pl?inv_book=[% loo.invbook_definition_id %]">[% loo.invbook_definition_id %]</a>)</td>
+            <td align="right">[% loo.entries_total_count %]</td>
+            <td align="right">[% loo.entries_total_cost %]</td>
+            <td align="right">[% loo.item_total_count %]</td>
+            <td align="right">[% loo.item_total_cost %]</td>
+            <td>[% loo.associated_book_name |html %][% IF ( loo.writeoff_parent_invbook_defn_id ) %] ([% loo.writeoff_parent_invbook_defn_id %])[% END %]</td>
+            <td align="center" style="color:green;">[% IF ( loo.active ) %]✓[% END %]</td>
+            <td><a href="[% script_name %]?op=edit_form&amp;invbook_definition_id=[% loo.invbook_definition_id %]">Edytuj</a>
+            [% UNLESS ( loo.entries_unit_count ) %]| <a href="[% script_name %]?op=delete&amp;invbook_definition_id=[% loo.invbook_definition_id %]">Usuń</a>[% END %]</td>
+        </tr>
+        [% END %]
+    </table>
+    <br />
+[% END %]
+
+[% END %] <!-- else op -->
+
+[% IF ( add_form || edit_form ) %]
+<form action="[% script_name %]" name="add_edit_form" method="post" class="validated">
+    <input type="hidden" name="op" value="save" />
+    <input type="hidden" name="ae_type" value="[% ae_type %]" />
+    <input type="hidden" name="invbook_definition_id" value="[% invbook_definition_id %]" />
+    <fieldset class="rows">
+    <legend>[% IF ( ae_type == "A" ) %]
+        [% IF ( add_form ) %]Dodaj[% ELSE %]Modyfikuj[% END %] księgę akcesji
+    [% ELSIF ( ae_type == "W" ) %]
+        [% IF ( add_form ) %]Dodaj[% ELSE %]Modyfikuj[% END %] księgę ubytków
+    [% ELSE %]
+        [% IF ( add_form ) %]Dodaj[% ELSE %]Modyfikuj[% END %] księgę inwentarzową
+    [% END %]</legend>
+    <ol>
+        <li>
+            <label for="ae_name" class="required">Pełna nazwa księgi: </label>
+            <input type="text" name="ae_name" id="ae_name" size="40" maxlength="255" required="required" value="[% ae_name %]" />
+        </li>
+        <li>
+            <label for="ae_name_abbrev">Skrócona nazwa: </label>
+            <input type="text" name="ae_name_abbrev" id="ae_name_abbrev" size="40" maxlength="255" value="[% ae_name_abbrev %]" />
+        </li>
+        <li>
+            <label for="ae_bookcode" class="required">Unikalny kod księgi: </label>
+            <input type="text" name="ae_bookcode" id="ae_bookcode" size="20" maxlength="30" required="required" value="[% ae_bookcode %]"[% UNLESS ( add_form ) %] readonly="readonly"[% END %] />
+        </li>
+        <li>
+            <label for="ae_branchcode" class="required">Kod filli: </label>
+            <input type="text" name="ae_branchcode" id="ae_branchcode" size="10" maxlength="10" required="required" value="[% ae_branchcode %]" />
+        </li>
+        <li>
+            <label for="ae_print_format">Format wydruku: </label>
+            <input type="text" name="ae_print_format" id="ae_print_format" size="30" maxlength="30" value="[% ae_print_format %]" />
+        </li>
+        <li>
+            <label for="ae_display_format">Format wyświetlania: </label>
+            <input type="text" name="ae_display_format" id="ae_display_format" size="30" maxlength="30" value="[% ae_display_format %]" />
+        </li>
+        <li>
+            <label for="ae_numbering_format">Format numeracji: </label>
+            <input type="text" name="ae_numbering_format" id="ae_numbering_format" size="30" maxlength="30" value="[% ae_numbering_format %]" />
+        </li>
+        <li>
+            <label for="ae_number_prefix">Prefiks numeru: </label>
+            <input type="text" name="ae_number_prefix" id="ae_number_prefix" size="20" maxlength="30" value="[% ae_number_prefix %]" />
+        </li>
+        <li>
+            <label for="ae_number_suffix">Sufiks numeru: </label>
+            <input type="text" name="ae_number_suffix" id="ae_number_suffix" size="20" maxlength="30" value="[% ae_number_suffix %]" />
+        </li>
+        [% IF ( ae_type == "I" ) %]
+        <li>
+            <label for="ae_cn_prefix">Prefiks sygnatury: </label>
+            <input type="text" name="ae_cn_prefix" id="ae_cn_prefix" size="20" maxlength="30" value="[% ae_cn_prefix %]" />
+        </li>
+        <li>
+            <label for="ae_cn_suffix">Sufiks sygnatury: </label>
+            <input type="text" name="ae_cn_suffix" id="ae_cn_suffix" size="20" maxlength="30" value="[% ae_cn_suffix %]" />
+        </li>
+        <li>
+            <label for="ae_default_location">Lokalizacja (domyślna): </label>
+            <input type="text" name="ae_default_location" id="ae_default_location" size="20" maxlength="80" value="[% ae_default_location %]" />
+        </li>
+        [% END %]
+        [% IF ( ae_type == "W" ) %]
+        <li>
+            <label for="ae_writeoff_basis_seq_number_last">Licznik bieżącej num. protokołów: </label>
+            <input type="number" name="ae_writeoff_basis_seq_number_last" id="ae_writeoff_basis_seq_number_last" size="11" maxlength="11" value="[% ae_writeoff_basis_seq_number_last %]" />
+        </li>
+        [% END %]
+        [% IF (UnassociatedBooksAvailable && (ae_type == "I" || ae_type == "W")) %]
+        <li>
+            <label for="ae_writeoff_parent_invbook_defn_id">Skojarzona księga [% IF ( ae_type == "I" ) %]ubytków[% ELSE %]inwentarzowa[% END %]: </label>
+            <select id="ae_writeoff_parent_invbook_defn_id" name="ae_writeoff_parent_invbook_defn_id">
+                <option value="0">-----</option>
+                [% FOREACH uba IN UnassociatedBooksAvailable %]
+                    [% IF ( uba.ua_book_id == ae_writeoff_parent_invbook_defn_id ) %]
+                        <option value="[% uba.ua_book_id %]" selected>[% uba.ua_book_name |html %]</option>
+                    [% ELSE %]
+                        <option value="[% uba.ua_book_id %]">[% uba.ua_book_name |html %]</option>
+                    [% END %]
+                [% END %]
+            </select>
+        </li>
+        [% END %]
+        <li>
+            <label for="ae_notes">Uwagi: </label>
+            <textarea id="ae_notes" name="ae_notes" rows="4" cols="60" />[% ae_notes %]</textarea>
+        </li>
+        [% UNLESS ( add_form ) %]
+        <li>
+            <span class="label">Data modyfikacji: </span>[% ae_timestamp_updated %]
+        </li>
+        <li>
+            <span class="label">Zarządzana przez: </span>[% ae_owner_name %]
+        </li>
+		[% END %]
+        <li>
+            <label for="ae_active">Księga w użyciu (aktywna): </label>
+            [% IF ( ae_active || add_form ) %]
+            <input type="checkbox" id="ae_active" name="ae_active" value="1" checked="checked" />
+            [% ELSE %]
+            <input type="checkbox" id="ae_active" name="ae_active" value="1" />
+            [% END %]
+        </li>
+
+        </ol>
+        </fieldset>
+
+        <fieldset class="action">
+            <input type="submit" value="Zapisz" />
+            <a href="[% script_name %]" class="cancel">Porzuć zmiany</a>
+        </fieldset>
+    </form>
+[% END %] <!-- (add|edit)_form -->
+
+</div>
+</div>
+<div class="yui-b">
+[% INCLUDE 'admin-menu.inc' %]
+</div>
+</div>
+[% INCLUDE 'intranet-bottom.inc' %]

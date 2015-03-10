@@ -1,0 +1,61 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inventory</title>
+[% INCLUDE 'doc-head-close.inc' %]
+[% USE AuthorisedValues %]
+<script type="text/javascript">
+//<![CDATA[
+
+	$(document).ready(function(){
+        $('#inv_tabs').tabs();
+
+});
+//]]>
+</script>
+</head>
+<body id="inventory_main" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'home-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; Inventory</div>
+
+<div id="doc" class="yui-t7">
+
+   <div id="bd">
+		<div id="yui-main">
+		    <div id="yui-b">
+            <h1>Inventory</h1>
+            <div id="inv_tabs" class="toptabs">
+                <ul>[% FOREACH typeloo IN bookTypes %]<li><a href="#[% typeloo.type %]set">[% AuthorisedValues.GetByCode( 'InvBooks', typeloo.type ) %]</a></li>[% END %]</ul>
+                [% FOREACH typeloo IN bookTypes %]
+                <div id="[% typeloo.type %]set">
+                [% SWITCH typeloo.type %]
+                    [% CASE 'I' %]
+                        <form method="get" action="/cgi-bin/koha/inventory/inventory.pl" name="[% typeloo.type %]form">
+                    [% CASE 'W' %]
+                        <form method="get" action="/cgi-bin/koha/inventory/writeoff.pl" name="[% typeloo.type %]form">
+                    [% CASE 'A' %]
+                        <form method="get" action="/cgi-bin/koha/inventory/accession.pl" name="[% typeloo.type %]form">
+                [% END %]
+                        <label for="inv_book">Available books:</label>
+                        <select id="inv_book" name="inv_book">
+                            [% FOREACH invloo IN invBooks %]
+                                [% IF invloo.type == typeloo.type %]
+                                <option value="[% invloo.invbook_definition_id  %]">[% invloo.name %]</option>
+                                [% END %]
+                            [% END %]
+                        </select>
+                    <input type="submit" class="submit" value="Select">
+                </form>
+                </div> <!-- div invloo.type set -->
+                [% END %]
+            </div> <!-- div inv_tabs -->
+            <a class="strong" href="/cgi-bin/koha/inventory/inventory_books_definitions.pl">Zarządzaj księgami akcesji/inwentarzowymi/ubytków (Usuń/dodaj/modyfikuj)</a>
+            </div>
+        <div class="yui-g">
+            [% #INCLUDE inventory-menu.inc %]
+        </div>
+    </div>
+</div>
+
+
+[% INCLUDE 'intranet-bottom.inc' %]

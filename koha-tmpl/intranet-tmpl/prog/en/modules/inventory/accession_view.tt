@@ -1,0 +1,106 @@
+[% USE KohaDates %]
+[% USE AuthorisedValues %]
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inwentarz &rsaquo; Akcesje &rsaquo; Szczegóły akcesji</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body id="inventory_accession_view" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/inventory/inventory-home.pl">Inwentarz</a>
+&rsaquo; <a href="/cgi-bin/koha/inventory/accession.pl?inv_book=[% bookdef.invbook_definition_id %]">Akcesje</a>
+&rsaquo; Szczegóły akcesji &quot;<i>[% acc_info.accession_number |html %]</i>&quot;
+</div>
+
+<div id="doc2" class="yui-t7">
+
+   <div id="bd">
+		<div id="yui-main">
+		    <div class="yui-b">
+
+                [% IF ( bookdef.invbook_definition_id && acc_id ) %]
+                <div id="toolbar" class="btn-toolbar">
+                    <a class="btn btn-small" id="add_accession" href="/cgi-bin/koha/inventory/accession_manage.pl?op=add&amp;inv_book=[% bookdef.invbook_definition_id %]"><i class="icon-plus"></i> Dodaj akcesję</a>
+                    <a class="btn btn-small" id="mod_accession" href="/cgi-bin/koha/inventory/accession_manage.pl?op=edit&amp;acc_id=[% acc_id %]&amp;inv_book=[% bookdef.invbook_definition_id %]"><i class="icon-edit"></i> Modyfikuj akcesję</a>
+                    <a class="btn btn-small" id="accession_details" href="/cgi-bin/koha/inventory/accession_view.pl?acc_id=[% acc_id %]"><i class="icon-arrow-right"></i> Szczegóły rekordu</a>
+                </div>
+                [% END %]
+
+				<div class="yui-g">
+
+                    <fieldset class="rows" id="accesion_details">
+                        <legend id="accession_lgd">Szczegóły akcesji</legend>
+                        <ol>
+                          <li><label for="accession_number">Numer akcesji:</label>[% acc_info.accession_number |html %]</li>
+
+                          <li><label for="invoice_id_number">Numer&nbsp;faktury (dokumentu):</label>
+                          [% IF ( invoice ) %]
+                              <a href="/cgi-bin/koha/acqui/invoice.pl?invoiceid=[% invoice.invoiceid %]">[% invoice.invoicenumber | html %]</a>
+                          [% ELSE %]
+                              [% acc_info.invoice_document_nr |html %]
+                          [% END %]
+                          </li>
+
+                          <li><label for="bookdef_id">Nazwa księgi:</label>
+                          <a href="/cgi-bin/koha/inventory/accession.pl?inv_book=[% bookdef.invbook_definition_id %]">[% bookdef.name %]</a></li>
+
+                          <li><label for="bookseller">Dostawca:</label>
+                          [% IF ( bookseller ) %]
+                              <a href="/cgi-bin/koha/acqui/supplier.pl?booksellerid=[% bookseller.id %]">[% bookseller.name |html %]</a>
+                          [% ELSE %]
+                              [% acc_info.vendor_name |html %]
+                          [% END %]
+                          </li>
+
+                          <li><label for="date_accessioned">Data akcesj:</label>[% acc_info.date_accessioned | $KohaDates %]</li>
+                          <li><label for="entries_total_count">Ilość jednostek:</label>[% acc_info.entries_total_count %]</li>
+                          <li><label for="total_cost">Wartość:</label>[% acc_info.total_cost %] PLN
+                          [% UNLESS ( acc_info.cost_managed_manually || acc_info.total_cost == acc_info.entries_total_cost ) %]
+                              &nbsp;&nbsp;<span style="color:red">(suma wartości jednostek: [% acc_info.entries_total_cost %] PLN)</span>
+                          [% END %]
+                          </li>
+
+                          [% UNLESS ( novolumes_count && nofascile_count && noother_count && nospecial_count ) %]
+                          <fieldset class="rows" id="accession_count_details" style="width: 40%; float: left;">
+                          <legend id="accession_count_details_legend">Wykaz ilości jednostek</legend><ol>
+                          [% UNLESS novolumes_count %]
+                          <li><label for="avol">wolumen:</label>[% acc_info.volumes_count %]</li>
+                          [% END %]
+                          [% UNLESS nofascile_count %]
+                          <li><label for="fascile_count">zeszyt:</label>[% acc_info.fascile_count %]</li>
+                          [% END %]
+                          [% UNLESS noother_count %]
+                          <li><label for="other_count">inne:</label>[% acc_info.other_count %]</li>
+                          [% END %]
+                          [% UNLESS nospecial_count %]
+                          <li><label for="special_count">specjalne:</label>[% acc_info.special_count %]</li>
+                          [% END %]
+                          </ol></fieldset>
+                          [% END %]
+
+                          [% UNLESS noacquisition_mode %]
+                          <li><label for="acquisition_mode">Sposób pozyskania:</label>
+                          [% AuthorisedValues.GetByCode( 'IVB_ACQ_MODES', acc_info.acquisition_mode ) %] [ <i>[% acc_info.acquisition_mode %]</i> ]</li>
+                          [% END %]
+
+                          [% IF (acc_info.notes) %]<li><label for="notes">Uwagi:</label><span>[% acc_info.notes %]</span></li>[% END %]
+                          [% IF (acc_info.notes_import) %]<li><label for="notes_import">Import (uwagi):</label><span>[% acc_info.notes_import %]</span></li>[% END %]
+
+                          <li><label for="date_entered">Data wpisu:</label>[% acc_info.date_entered | $KohaDates %]</li>
+                          <li><label for="timestamp_updated">Data modyfikacji:</label>[% acc_info.timestamp_updated | $KohaDates %]</li>
+                          <li><label for="cost_managed_manually">Koszt zarządzany ręcznie:</label>
+                          [% IF acc_info.cost_managed_manually %]tak[% ELSE %]nie[% END %]
+                          </li>
+                         </ol>
+                    </fieldset>
+
+                </div>
+            </div>
+        <div class="yui-g">
+            [% #INCLUDE inventory-menu.inc %]
+        </div>
+    </div>
+</div>
+
+[% INCLUDE 'intranet-bottom.inc' %]

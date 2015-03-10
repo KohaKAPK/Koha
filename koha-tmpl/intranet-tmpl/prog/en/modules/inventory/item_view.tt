@@ -1,0 +1,119 @@
+[% USE KohaDates %]
+[% USE AuthorisedValues %]
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha &rsaquo; Inwentarz &rsaquo; Księgi &rsaquo; Szczegóły wpisu</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body id="inventory_item_view" class="inv">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/inventory/inventory-home.pl">Inwentarz</a>
+&rsaquo; <a href="/cgi-bin/koha/inventory/inventory.pl?inv_book=[% bookdef.invbook_definition_id %]">Księgi inwentarzowe</a>
+&rsaquo; Szczegóły wpisu &quot;<i>[% item.inventory_number |html %]</i>&quot;
+</div>
+
+<div id="doc2" class="yui-t7">
+
+   <div id="bd">
+		<div id="yui-main">
+		    <div class="yui-b">
+
+                [% IF ( bookdef.invbook_definition_id && item_id ) %]
+                <div id="toolbar" class="btn-toolbar">
+                    <a class="btn btn-small" id="item_details" href="/cgi-bin/koha/inventory/item_view.pl?item_id=[% item_id %]"><i class="icon-arrow-right"></i> Szczegóły rekordu</a>
+                </div>
+                [% END %]
+
+				<div class="yui-g">
+
+                    <fieldset class="rows" id="inventory_item_details">
+                        <legend id="inventory_item_lgd">Szczegóły pozycji inwentarza</legend>
+                        <ol>
+                          <li><label for="item_number">Numer inwentarza:</label>[% bookdef.number_prefix %][% item.inventory_number %][% bookdef.number_suffix %]</li>
+                          <li><label for="callnumber">Sygnatura:</label>
+                          [% IF ( item.biblionumber && item.itemnumber ) %]
+                              <a href="/cgi-bin/koha/catalogue/moredetail.pl?itemnumber=[% item.itemnumber  %]&biblionumber=[% item.biblionumber %]&bi=[% item.biblionumber %]#item[% item.itemnumber  %]">[% item.callnumber %]</a>
+                          [% ELSE %]
+                              [% item.callnumber |html %]
+                          [% END %]
+                          </li>
+
+                          <li><label for="bookdef_id">Nazwa księgi:</label>
+                          <a href="/cgi-bin/koha/inventory/inventory.pl?inv_book=[% bookdef.invbook_definition_id %]">[% bookdef.name %]</a></li>
+
+                          <li><label for="date_added">Data wpisu:</label>[% item.date_added | $KohaDates %]</li>
+                          <li><label for="unitprice">Wartość:</label>[% item.unitprice %] PLN</li>
+                          [% UNLESS noacquisition_mode %]
+                          <li><label for="acquisition_mode">Sposób pozyskania:</label>
+                          [% AuthorisedValues.GetByCode( 'IVB_ACQ_MODES', item.acquisition_mode ) %] [ <i>[% item.acquisition_mode %]</i> ]</li>
+                          [% END %]
+
+                          <fieldset class="rows" id="accessioning_details" style="width: 90%; float: left;">
+                          <legend id="accessioning_details_legend">Akcesja</legend><ol>
+                          <li><label for="accession_number">Numer akcesji:</label>
+                          [% IF ( acc_info ) %]
+                              <a href="/cgi-bin/koha/inventory/accession_view.pl?acc_id=[% acc_info.accession_id %]">[% acc_info.accession_number |html %]</a>
+                          [% ELSE %]
+                              brak danych
+                          [% END %]
+                          </li>
+                          <li><label for="bookseller">Dostawca:</label>
+                          [% IF ( bookseller ) %]
+                              <a href="/cgi-bin/koha/acqui/supplier.pl?booksellerid=[% bookseller.id %]">[% bookseller.name |html %]</a>
+                          [% ELSE %]
+                              [% acc_info.vendor_name |html %]
+                          [% END %]
+                          </li>
+                          <li><label for="invoice_id_number">Numer&nbsp;faktury (dokumentu):</label>
+                          [% IF ( invoice ) %]
+                              <a href="/cgi-bin/koha/acqui/invoice.pl?invoiceid=[% invoice.invoiceid %]">[% invoice.invoicenumber | html %]</a>
+                          [% ELSE %]
+                              [% acc_info.invoice_document_nr |html %]
+                          [% END %]
+                          </li>
+                          </ol></fieldset>
+
+                          <fieldset class="rows" id="biblio_details" style="width: 90%; float: left;">
+                          <legend id="biblio_details_legend">Dane bibliograficzne</legend><ol>
+                          <li><label for="title">Tytuł:</label>
+                          [% IF ( item.biblionumber ) %]
+                              <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% item.biblionumber %]">[% item.title |html %]</a>
+                          [% ELSE %]
+                              [% item.title |html %]
+                          [% END %]
+                          </li>
+                          <li><label for="author">Autor:</label>[% item.author |html %]</li>
+                          <li><label for="publication_place">Miejsce wydania:</label>[% item.publication_place |html %]</li>
+                          <li><label for="publication_date">Data wydania:</label>[% item.publication_date |html %]</li>
+                          <li><label for="publication_nr">Wydanie:</label>[% item.publication_nr |html %]</li>
+                          </ol></fieldset>
+
+                          <li><label for="location">Lokalizacja:</label>[% item.location %]
+                          [% IF (item.st_class_1) %]<li><label for="st_class_1">Kod jezyka:</label><span>[% item.st_class_1 %]</span></li>[% END %]
+                          [% IF (item.st_class_2) %]<li><label for="st_class_2">Dział (dziedzina):</label><span>[% item.st_class_2 %]</span></li>[% END %]
+
+                          [% IF (item.notes || 1) %]<li><label for="notes">Uwagi (ogólne):</label><span>[% item.notes %]</span></li>[% END %]
+                          [% IF (item.notes_internal || 1) %]<li><label for="notes_internal">Uwagi (wewn.):</label><span>[% item.notes_internal %]</span></li>[% END %]
+                          [% IF (item.notes_import || 1) %]<li><label for="notes_import">Uwagi (import):</label><span>[% item.notes_import %]</span></li>[% END %]
+
+                          <li><label for="date_incorporated">Data przekazania:</label>[% item.date_incorporated | $KohaDates %]</li>
+                          <li><label for="timestamp_updated">Data modyfikacji:</label>[% item.timestamp_updated | $KohaDates %]</li>
+                          <li><label for="printed_yes_no">Wydrukowane:</label>
+                          [% IF item.date_printed %]tak[% ELSE %]nie[% END %]</li>
+                          <li><label for="date_printed">Data wydruku:</label>[% item.date_printed | $KohaDates %]</li>
+                          <li><label for="woff_yes_no">Ubytkowane:</label>
+                          [% IF item.writeoff_id %]tak[% ELSE %]nie[% END %]</li>
+                          </li>
+                         </ol>
+                    </fieldset>
+
+                </div>
+            </div>
+        <div class="yui-g">
+            [% #INCLUDE inventory-menu.inc %]
+        </div>
+    </div>
+</div>
+
+[% INCLUDE 'intranet-bottom.inc' %]
